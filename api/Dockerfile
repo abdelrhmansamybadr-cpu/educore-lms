@@ -9,14 +9,14 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 # Copy workspace manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/ ./packages/
-COPY apps/api/package.json ./apps/api/
+COPY api/package.json ./api/
 
 # Install deps (only API + shared packages)
 RUN pnpm install --frozen-lockfile --filter @educore/api...
 
 # Copy source and Prisma schema
 COPY prisma/ ./prisma/
-COPY apps/api/ ./apps/api/
+COPY api/ ./api/
 
 # Generate Prisma client
 RUN pnpm --filter @educore/api db:generate
@@ -33,7 +33,7 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/ ./packages/
-COPY apps/api/package.json ./apps/api/
+COPY api/package.json ./api/
 
 # Install production deps only
 RUN pnpm install --frozen-lockfile --filter @educore/api... --prod
@@ -41,9 +41,9 @@ RUN pnpm install --frozen-lockfile --filter @educore/api... --prod
 # Copy Prisma schema and generated client
 COPY prisma/ ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/api/dist ./api/dist
 
-WORKDIR /app/apps/api
+WORKDIR /app/api
 
 EXPOSE 4000
 

@@ -33,7 +33,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       final statsRes = await ApiClient.instance.get(ApiEndpoints.superAdminStats).catchError((_) async => null);
       final schoolsRaw = schoolsRes.data;
       final sd = (schoolsRaw is Map && schoolsRaw['data'] != null) ? schoolsRaw['data'] : schoolsRaw;
-      final statsRaw = statsRes?.data;
+      final statsRaw = statsRes.data;
       setState(() {
         _schools = sd is List ? List.from(sd) : [];
         _stats = (statsRaw is Map ? (statsRaw['data'] ?? statsRaw) : {}) as Map<String, dynamic>;

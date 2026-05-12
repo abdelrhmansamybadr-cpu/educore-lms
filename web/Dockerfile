@@ -7,11 +7,11 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/ ./packages/
-COPY apps/web/package.json ./apps/web/
+COPY web/package.json ./web/
 
 RUN pnpm install --frozen-lockfile --filter @educore/web...
 
-COPY apps/web/ ./apps/web/
+COPY web/ ./web/
 
 # Build Next.js in standalone mode
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -30,9 +30,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Next.js standalone output
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/web/.next/standalone ./
+COPY --from=builder /app/web/.next/static ./web/.next/static
+COPY --from=builder /app/web/public ./web/public
 
 USER nextjs
 
@@ -40,4 +40,4 @@ EXPOSE 4001
 ENV PORT=4001
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "web/server.js"]

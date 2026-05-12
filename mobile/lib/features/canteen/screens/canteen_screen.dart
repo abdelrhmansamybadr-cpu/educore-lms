@@ -18,7 +18,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
   String? _error;
   List<dynamic> _items = [];
   List<dynamic> _orders = [];
-  Map<String, int> _cart = {};
+  final Map<String, int> _cart = {};
   bool _showCart = false;
   bool _placing = false;
 
@@ -35,7 +35,7 @@ class _CanteenScreenState extends State<CanteenScreen> {
       final raw = res.data;
       final d = (raw is Map && raw['data'] != null) ? raw['data'] : raw;
       final ordersRes = await ApiClient.instance.get(ApiEndpoints.myCanteenOrders).catchError((_) async => null);
-      final ordersRaw = ordersRes?.data;
+      final ordersRaw = ordersRes.data;
       setState(() {
         _items = d is List ? List.from(d) : [];
         final od = ordersRaw is Map ? (ordersRaw['data'] ?? ordersRaw) : ordersRaw;

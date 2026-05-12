@@ -121,7 +121,7 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: apps/web/playwright-report/
+          path: web/playwright-report/
           retention-days: 7
 
   # ── Mobile Build ──────────────────────────────────────────────────────────────
@@ -137,20 +137,20 @@ jobs:
           channel: 'stable'
 
       - name: Flutter pub get
-        working-directory: apps/mobile
+        working-directory: mobile
         run: flutter pub get
 
       - name: Flutter analyze
-        working-directory: apps/mobile
+        working-directory: mobile
         run: flutter analyze --no-fatal-infos
 
       - name: Build Android APK (debug)
-        working-directory: apps/mobile
+        working-directory: mobile
         run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
