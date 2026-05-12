@@ -206,7 +206,79 @@ enum ApplicationStatus {
 // CORE MODELS
 // ─────────────────────────────────────────────
 
+// ─── ORGANIZATION (SaaS tenant owner) ────────
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  logo        String?
+  email       String    @unique
+  phone       String?
+  countryCode String    @default("US")
+  plan        OrgPlan   @default(STARTER)
+  isActive    Boolean   @default(true)
+  trialEndsAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  schools       School[]
+  subscription  OrgSubscription?
+  owners        OrgMember[]
+}
+
+model OrgMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  role           String       @default("OWNER") // OWNER, MANAGER, BILLING
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+model OrgSubscription {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           OrgPlan      @default(STARTER)
+  status         String       @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED, TRIALING
+  maxSchools     Int          @default(1)
+  maxStudents    Int          @default(500)
+  stripeCustomerId  String?
+  stripeSubId       String?
+  currentPeriodEnd  DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+enum OrgPlan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+// ─── SCHOOL ONBOARDING ───────────────────────
+model OnboardingState {
+  id         String   @id @default(cuid())
+  schoolId   String   @unique
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  step       Int      @default(1)  // 1-6
+  completed  Boolean  @default(false)
+  data       Json     @default("{}")  // stores partial wizard data
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model School {
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  branchOf       String?       // parent school id for branches
+  parentSchool   School?       @relation("SchoolBranches", fields: [branchOf], references: [id])
+  branches       School[]      @relation("SchoolBranches")
+  numberOfStudents Int?
+  numberOfBranches Int         @default(1)
   id             String         @id @default(cuid())
   name           String
   nameAr         String?
@@ -228,6 +300,7 @@ model School {
   updatedAt      DateTime       @updatedAt
 
   // Relations
+  onboardingState OnboardingState?
   settings       SchoolSettings?
   academicYears  AcademicYear[]
   gradeLevels    GradeLevel[]
@@ -268,12 +341,34 @@ model SchoolSettings {
   moyasarEnabled      Boolean @default(false)
 
   // Academic
-  gradingSystem       GradingSystem @default(PERCENTAGE)
-  attendanceMethod    String        @default("MANUAL") // MANUAL, QR, BIOMETRIC
-  allowParentMessages Boolean       @default(true)
-  allowStudentMessages Boolean      @default(true)
-  lateSubmissionAllowed Boolean     @default(true)
-  latePenaltyPercent  Int           @default(10)
+  gradingSystem         GradingSystem @default(PERCENTAGE)
+  attendanceMethod      String        @default("MANUAL") // MANUAL, QR, BIOMETRIC
+  allowParentMessages   Boolean       @default(true)
+  allowStudentMessages  Boolean       @default(true)
+  lateSubmissionAllowed Boolean       @default(true)
+  latePenaltyPercent    Int           @default(10)
+
+  // Curriculum-specific config (JSON blobs per curriculum type)
+  // Stored as JSON for maximum flexibility — parsed by config engine
+  gradingConfig       Json?   // e.g. GPA scale, pass mark, grade boundaries
+  termStructure       Json?   // number of terms, names, dates template
+  reportCardTemplate  String? @default("STANDARD") // STANDARD, GPA, GCSE, IB, CUSTOM
+  transcriptTemplate  String? @default("STANDARD")
+  passMark            Int     @default(50)
+  gpaScale            Float   @default(4.0)
+
+  // Features
+  enableBiometrics    Boolean @default(false)
+  enableQrAttendance  Boolean @default(false)
+  enableAiFeatures    Boolean @default(true)
+  enableParentPortal  Boolean @default(true)
+  enableStudentPortal Boolean @default(true)
+  enablePublicCalendar Boolean @default(false)
+
+  // Branding
+  primaryColor   String? @default("#1E3A5F")
+  accentColor    String? @default("#2DD4BF")
+  customDomain   String?
 }
 
 model SchoolModuleConfig {

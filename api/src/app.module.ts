@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule'
 import { AuthModule } from './modules/auth/auth.module'
 import { UsersModule } from './modules/users/users.module'
 import { SchoolsModule } from './modules/schools/schools.module'
+import { OnboardingModule } from './modules/onboarding/onboarding.module'
 import { CoursesModule } from './modules/courses/courses.module'
 import { AssignmentsModule } from './modules/assignments/assignments.module'
 import { QuizzesModule } from './modules/quizzes/quizzes.module'
@@ -53,6 +54,7 @@ import { PrismaModule } from './prisma/prisma.module'
     AuthModule,
     UsersModule,
     SchoolsModule,
+    OnboardingModule,
     CoursesModule,
     AssignmentsModule,
     QuizzesModule,

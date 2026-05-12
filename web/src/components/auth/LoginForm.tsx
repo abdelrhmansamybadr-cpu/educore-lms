@@ -180,6 +180,14 @@ export function LoginForm() {
         </div>
       </div>
 
+      {/* Register link */}
+      <p className="text-center text-sm text-gray-500">
+        {locale === 'ar' ? 'ليس لديك حساب؟' : "Don't have an account?"}{' '}
+        <a href={`/${locale}/onboarding`} className="text-primary-600 font-semibold hover:underline">
+          {locale === 'ar' ? 'سجّل مدرستك مجاناً' : 'Register your school free'}
+        </a>
+      </p>
+
       {/* Social Login */}
       <div className="space-y-3">
         <button

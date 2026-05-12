@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
@@ -20,6 +21,7 @@ interface NavItem {
   icon: React.ReactNode
   href: string
   badge?: number
+  module?: string  // if set, hidden when school has this module disabled
 }
 
 interface NavSection {
@@ -98,17 +100,17 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
         key: 'management', labelAr: 'الإدارة', labelEn: 'Management',
         items: [
           { key: 'users', label: 'Users', labelAr: 'المستخدمون', icon: <Users size={18} />, href: `${basePath}/users` },
-          { key: 'finance', label: 'Finance', labelAr: 'المالية', icon: <DollarSign size={18} />, href: `${basePath}/finance` },
-          { key: 'events', label: 'Events', labelAr: 'الفعاليات', icon: <CalendarDays size={18} />, href: `${basePath}/events` },
-          { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library` },
-          { key: 'health', label: 'Health', labelAr: 'الصحة', icon: <Heart size={18} />, href: `${basePath}/health` },
-          { key: 'transport', label: 'Transport', labelAr: 'النقل', icon: <Bus size={18} />, href: `${basePath}/transport` },
-          { key: 'tickets', label: 'Support', labelAr: 'الدعم الفني', icon: <Ticket size={18} />, href: `${basePath}/tickets` },
-          { key: 'devices', label: 'Devices', labelAr: 'الأجهزة', icon: <Laptop size={18} />, href: `${basePath}/devices` },
-          { key: 'hr', label: 'HR', labelAr: 'الموارد البشرية', icon: <Users size={18} />, href: `${basePath}/hr` },
-          { key: 'canteen', label: 'Canteen', labelAr: 'المقصف', icon: <Brain size={18} />, href: `${basePath}/canteen` },
-          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Laptop size={18} />, href: `${basePath}/store` },
-          { key: 'admission', label: 'Admission', labelAr: 'القبول', icon: <GraduationCap size={18} />, href: `${basePath}/admission` },
+          { key: 'finance', label: 'Finance', labelAr: 'المالية', icon: <DollarSign size={18} />, href: `${basePath}/finance`, module: 'FINANCE' },
+          { key: 'events', label: 'Events', labelAr: 'الفعاليات', icon: <CalendarDays size={18} />, href: `${basePath}/events`, module: 'EVENTS' },
+          { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library`, module: 'LIBRARY' },
+          { key: 'health', label: 'Health', labelAr: 'الصحة', icon: <Heart size={18} />, href: `${basePath}/health`, module: 'HEALTH' },
+          { key: 'transport', label: 'Transport', labelAr: 'النقل', icon: <Bus size={18} />, href: `${basePath}/transport`, module: 'TRANSPORT' },
+          { key: 'tickets', label: 'Support', labelAr: 'الدعم الفني', icon: <Ticket size={18} />, href: `${basePath}/tickets`, module: 'TICKETS' },
+          { key: 'devices', label: 'Devices', labelAr: 'الأجهزة', icon: <Laptop size={18} />, href: `${basePath}/devices`, module: 'DEVICES' },
+          { key: 'hr', label: 'HR', labelAr: 'الموارد البشرية', icon: <Users size={18} />, href: `${basePath}/hr`, module: 'HR' },
+          { key: 'canteen', label: 'Canteen', labelAr: 'المقصف', icon: <Brain size={18} />, href: `${basePath}/canteen`, module: 'CANTEEN' },
+          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Laptop size={18} />, href: `${basePath}/store`, module: 'STORE' },
+          { key: 'admission', label: 'Admission', labelAr: 'القبول', icon: <GraduationCap size={18} />, href: `${basePath}/admission`, module: 'ADMISSION' },
           { key: 'receptionist', label: 'Reception', labelAr: 'الاستقبال', icon: <Bell size={18} />, href: `${basePath}/receptionist` },
           { key: 'boarding', label: 'Boarding', labelAr: 'السكن الداخلي', icon: <Video size={18} />, href: `${basePath}/boarding` },
         ],
@@ -263,7 +265,34 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
     ? (collapsed ? ChevronLeft : ChevronRight)
     : (collapsed ? ChevronRight : ChevronLeft)
 
-  const sections = getNavSections(locale, basePath)
+  // Fetch enabled modules for this school
+  const [enabledModules, setEnabledModules] = React.useState<Set<string> | null>(null)
+  React.useEffect(() => {
+    if (!user?.schoolId) { setEnabledModules(null); return }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/schools/my/modules`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const enabled = new Set<string>(
+          (Array.isArray(data) ? data : data?.data ?? [])
+            .filter((m: any) => m.enabled)
+            .map((m: any) => m.module)
+        )
+        setEnabledModules(enabled)
+      })
+      .catch(() => setEnabledModules(null))
+  }, [user?.schoolId])
+
+  const allSections = getNavSections(locale, basePath)
+  // Filter items by module — if module not in enabled set, hide it
+  // null enabledModules = still loading or super admin — show all
+  const sections = enabledModules === null
+    ? allSections
+    : allSections.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !item.module || enabledModules.has(item.module)),
+      })).filter((section) => section.items.length > 0)
 
   return (
     <aside
