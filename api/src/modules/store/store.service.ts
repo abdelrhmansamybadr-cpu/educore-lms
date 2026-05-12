@@ -86,6 +86,103 @@ export class StoreService {
     })
   }
 
+  // ── Store Item Requests ────────────────────────────────────────────────────
+
+  async getItemRequests(schoolId: string, userId: string, isAdmin: boolean) {
+    const where: any = { schoolId }
+    if (!isAdmin) where.requestedById = userId
+    return this.prisma.storeItemRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        item: { select: { id: true, name: true, unit: true, quantity: true } },
+        requestedBy: { include: { profile: { select: { firstName: true, lastName: true } } } },
+        approvedBy: { include: { profile: { select: { firstName: true, lastName: true } } } },
+      },
+    })
+  }
+
+  async createItemRequest(userId: string, schoolId: string, dto: { itemId: string; quantity: number; reason?: string }) {
+    const item = await this.prisma.storeItem.findFirst({ where: { id: dto.itemId, schoolId } })
+    if (!item) throw new NotFoundException('Item not found')
+    return this.prisma.storeItemRequest.create({
+      data: { schoolId, requestedById: userId, itemId: dto.itemId, quantity: dto.quantity, reason: dto.reason },
+      include: { item: { select: { name: true, unit: true } } },
+    })
+  }
+
+  async approveItemRequest(id: string, adminId: string, notes?: string) {
+    return this.prisma.storeItemRequest.update({
+      where: { id },
+      data: { status: 'APPROVED', approvedById: adminId, approvedAt: new Date(), notes },
+    })
+  }
+
+  async rejectItemRequest(id: string, adminId: string, notes: string) {
+    return this.prisma.storeItemRequest.update({
+      where: { id },
+      data: { status: 'REJECTED', approvedById: adminId, approvedAt: new Date(), notes },
+    })
+  }
+
+  async collectItemRequest(id: string, adminId: string) {
+    const req = await this.prisma.storeItemRequest.findUnique({
+      where: { id },
+      include: { item: true },
+    })
+    if (!req) throw new NotFoundException('Request not found')
+
+    return this.prisma.$transaction(async (tx) => {
+      // Deduct stock
+      await tx.storeItem.update({
+        where: { id: req.itemId },
+        data: { quantity: { decrement: req.quantity } },
+      })
+      // Log movement
+      await tx.stockMovement.create({
+        data: {
+          itemId: req.itemId,
+          schoolId: req.schoolId,
+          type: 'OUT',
+          quantity: req.quantity,
+          reason: `Collected by employee (request #${req.id.slice(-6)})`,
+          userId: adminId,
+        },
+      })
+      // Mark collected
+      return tx.storeItemRequest.update({
+        where: { id },
+        data: { status: 'COLLECTED', collectedAt: new Date() },
+      })
+    })
+  }
+
+  async getEmployeeRequestSummary(schoolId: string) {
+    const requests = await this.prisma.storeItemRequest.findMany({
+      where: { schoolId },
+      include: {
+        item: { select: { name: true, unit: true } },
+        requestedBy: { include: { profile: { select: { firstName: true, lastName: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    // Group by employee
+    const byEmployee: Record<string, any> = {}
+    for (const req of requests) {
+      const uid = req.requestedById
+      if (!byEmployee[uid]) {
+        byEmployee[uid] = {
+          userId: uid,
+          name: `${req.requestedBy?.profile?.firstName ?? ''} ${req.requestedBy?.profile?.lastName ?? ''}`.trim(),
+          requests: [],
+        }
+      }
+      byEmployee[uid].requests.push(req)
+    }
+    return Object.values(byEmployee)
+  }
+
   async getStats(schoolId: string) {
     const items = await this.prisma.storeItem.findMany({ where: { schoolId } })
     const totalItems = items.length

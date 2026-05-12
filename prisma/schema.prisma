@@ -37,6 +37,7 @@ enum Role {
   EVENT_COORDINATOR
   SUPPORT_AGENT
   ACTIVITIES_COORDINATOR
+  REQUISITIONS_MANAGER
 }
 
 enum CurriculumType {
@@ -47,6 +48,7 @@ enum CurriculumType {
   IB
   CUSTOM
   MIXED
+  NATIONAL
 }
 
 enum SchoolLanguage {
@@ -221,9 +223,13 @@ model Organization {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  schools       School[]
-  subscription  OrgSubscription?
-  owners        OrgMember[]
+  schools          School[]
+  subscription     OrgSubscription?
+  owners           OrgMember[]
+  employees        User[]            @relation("OrgEmployees")
+  purchaseRequests PurchaseRequest[] @relation("OrgPurchaseRequests")
+  requisitions     Requisition[]     @relation("OrgRequisitions")
+  jobApplications  JobApplication[]  @relation("OrgJobApplications")
 }
 
 model OrgMember {
@@ -285,7 +291,7 @@ model School {
   slug           String         @unique
   logo           String?
   coverImage     String?
-  email          String         @unique
+  email          String
   phone          String?
   address        String?
   city           String?
@@ -320,9 +326,17 @@ model School {
   badges         Badge[]
   staffProfiles  StaffProfile[] @relation("StaffProfiles")
   canteenItems   CanteenItem[]  @relation("CanteenItems")
-  storeItems     StoreItem[]    @relation("StoreItems")
+  storeItems          StoreItem[]         @relation("StoreItems")
+  storeItemRequests   StoreItemRequest[]  @relation("SchoolStoreItemRequests")
   boardingRooms  BoardingRoom[] @relation("BoardingRooms")
   visitorLogs    VisitorLog[]   @relation("VisitorLogs")
+  disciplinaryRecords DisciplinaryRecord[] @relation("DisciplinaryRecords")
+  counselingSessions  CounselingSession[]  @relation("CounselingSessions")
+  studentDocuments    StudentDocument[]    @relation("StudentDocuments")
+  behaviorNotes       BehaviorNote[]       @relation("BehaviorNotes")
+  purchaseRequests    PurchaseRequest[]    @relation("SchoolPurchaseRequests")
+  requisitions        Requisition[]        @relation("SchoolRequisitions")
+  jobApplications     JobApplication[]     @relation("SchoolJobApplications")
 }
 
 model SchoolSettings {
@@ -389,11 +403,14 @@ model User {
   password    String?
   role        Role
   schoolId    String?
-  school      School?   @relation(fields: [schoolId], references: [id])
-  isActive    Boolean   @default(true)
-  lastLoginAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  school      School?        @relation(fields: [schoolId], references: [id])
+  organizationId String?
+  organization   Organization? @relation("OrgEmployees", fields: [organizationId], references: [id])
+  isActive            Boolean   @default(true)
+  mustChangePassword  Boolean   @default(false)
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
   profile           UserProfile?
@@ -422,6 +439,21 @@ model User {
   ticketMessages        TicketMessage[]        @relation("TicketMessages")
   deviceCheckouts       DeviceCheckout[]       @relation("DeviceCheckouts")
   boardingOccupancies   BoardingOccupant[]     @relation("BoardingOccupants")
+  disciplinaryRecords   DisciplinaryRecord[]   @relation("StudentDisciplinary")
+  reportedDisciplinary  DisciplinaryRecord[]   @relation("ReportedDisciplinary")
+  counselingAsStudent   CounselingSession[]    @relation("StudentCounseling")
+  counselorSessions     CounselingSession[]    @relation("CounselorSessions")
+  studentDocuments      StudentDocument[]      @relation("StudentDocuments")
+  issuedDocuments       StudentDocument[]      @relation("IssuedDocuments")
+  behaviorNotes         BehaviorNote[]         @relation("StudentBehavior")
+  addedBehaviorNotes    BehaviorNote[]         @relation("AddedBehaviorNotes")
+  requestedPurchases    PurchaseRequest[]      @relation("RequestedPurchases")
+  reviewedPurchases     PurchaseRequest[]      @relation("ReviewedPurchases")
+  requestedRequisitions Requisition[]          @relation("RequestedRequisitions")
+  reviewedRequisitions  Requisition[]          @relation("ReviewedRequisitions")
+  reviewedJobApps       JobApplication[]       @relation("ReviewedJobApplications")
+  storeItemRequests     StoreItemRequest[]     @relation("UserStoreItemRequests")
+  storeItemApprovals    StoreItemRequest[]     @relation("UserStoreItemApprovals")
 
   @@unique([email, schoolId])
   @@index([schoolId, role])
@@ -1470,8 +1502,33 @@ model StoreItem {
   updatedAt   DateTime  @updatedAt
 
   movements   StockMovement[]
+  itemRequests StoreItemRequest[]
 
   @@index([schoolId])
+}
+
+model StoreItemRequest {
+  id            String    @id @default(cuid())
+  schoolId      String
+  school        School    @relation("SchoolStoreItemRequests", fields: [schoolId], references: [id])
+  requestedById String
+  requestedBy   User      @relation("UserStoreItemRequests", fields: [requestedById], references: [id])
+  itemId        String
+  item          StoreItem @relation(fields: [itemId], references: [id])
+  quantity      Int       @default(1)
+  reason        String?
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED, READY, COLLECTED
+  notes         String?
+  approvedById  String?
+  approvedBy    User?     @relation("UserStoreItemApprovals", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  collectedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([requestedById])
+  @@index([itemId])
 }
 
 model StockMovement {
@@ -1533,4 +1590,353 @@ model VisitorLog {
   createdAt   DateTime @default(now())
 
   @@index([schoolId])
+}
+
+// ─── STUDENT AFFAIRS MODULE ───────────────────
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentType {
+  MISCONDUCT
+  BULLYING
+  LATE_ARRIVAL
+  UNIFORM_VIOLATION
+  CHEATING
+  VANDALISM
+  FIGHTING
+  DISRESPECT
+  ABSENCE_WITHOUT_EXCUSE
+  PROPERTY_DAMAGE
+  OTHER
+}
+
+enum CounselingSessionType {
+  ACADEMIC
+  BEHAVIORAL
+  PERSONAL
+  FAMILY
+  CAREER
+  PEER_CONFLICT
+  CRISIS
+}
+
+enum StudentDocumentType {
+  ENROLLMENT_CERTIFICATE
+  CONDUCT_CERTIFICATE
+  TRANSFER_LETTER
+  GRADE_TRANSCRIPT
+  ACHIEVEMENT_LETTER
+  DISCIPLINARY_LETTER
+  WITHDRAWAL_CERTIFICATE
+  OTHER
+}
+
+model DisciplinaryRecord {
+  id             String           @id @default(cuid())
+  schoolId       String
+  school         School           @relation("DisciplinaryRecords", fields: [schoolId], references: [id])
+  studentId      String
+  student        User             @relation("StudentDisciplinary", fields: [studentId], references: [id])
+  reportedById   String
+  reportedBy     User             @relation("ReportedDisciplinary", fields: [reportedById], references: [id])
+  type           IncidentType     @default(OTHER)
+  severity       IncidentSeverity @default(MEDIUM)
+  description    String
+  actionTaken    String?
+  parentNotified Boolean          @default(false)
+  resolved       Boolean          @default(false)
+  resolvedAt     DateTime?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+model CounselingSession {
+  id           String                @id @default(cuid())
+  schoolId     String
+  school       School                @relation("CounselingSessions", fields: [schoolId], references: [id])
+  studentId    String
+  student      User                  @relation("StudentCounseling", fields: [studentId], references: [id])
+  counselorId  String
+  counselor    User                  @relation("CounselorSessions", fields: [counselorId], references: [id])
+  type         CounselingSessionType @default(PERSONAL)
+  summary      String
+  notes        String?
+  isPrivate    Boolean               @default(true)
+  followUpDate DateTime?
+  sessionDate  DateTime              @default(now())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+model StudentDocument {
+  id          String              @id @default(cuid())
+  schoolId    String
+  school      School              @relation("StudentDocuments", fields: [schoolId], references: [id])
+  studentId   String
+  student     User                @relation("StudentDocuments", fields: [studentId], references: [id])
+  issuedById  String
+  issuedBy    User                @relation("IssuedDocuments", fields: [issuedById], references: [id])
+  type        StudentDocumentType @default(OTHER)
+  title       String
+  fileUrl     String?
+  notes       String?
+  issuedAt    DateTime            @default(now())
+  createdAt   DateTime            @default(now())
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+model BehaviorNote {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation("BehaviorNotes", fields: [schoolId], references: [id])
+  studentId   String
+  student     User     @relation("StudentBehavior", fields: [studentId], references: [id])
+  addedById   String
+  addedBy     User     @relation("AddedBehaviorNotes", fields: [addedById], references: [id])
+  isPositive  Boolean  @default(true)
+  points      Int      @default(1)
+  description String
+
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+
+// ─── OWNER / COMPANY MANAGEMENT ──────────────────────────────────────────────
+
+enum RequestStatus {
+  PENDING
+  PRICED
+  FINANCE_APPROVED
+  APPROVED
+  REJECTED
+  MONEY_RELEASED
+  MONEY_RECEIVED
+  PURCHASED
+  STORE_CONFIRMED
+  STORE_ISSUE
+  FINANCE_RELEASED
+  IN_PROGRESS
+  ITEMS_ARRIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum PurchaseCategory {
+  EQUIPMENT
+  SUPPLIES
+  SOFTWARE
+  SERVICES
+  MAINTENANCE
+  FURNITURE
+  IT
+  BOOKS
+  SPORTS
+  OTHER
+}
+
+enum RequisitionCategory {
+  STATIONERY
+  CLEANING
+  CATERING
+  PRINTING
+  MAINTENANCE
+  IT_SUPPLIES
+  MEDICAL
+  SPORTS
+  EVENTS
+  OTHER
+}
+
+enum JobApplicationStatus {
+  RECEIVED
+  SCREENING
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  INTERVIEWED
+  OFFER_SENT
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  INTERNSHIP
+}
+
+model PurchaseRequest {
+  id              String          @id @default(cuid())
+  organizationId  String
+  organization    Organization    @relation("OrgPurchaseRequests", fields: [organizationId], references: [id])
+  schoolId        String?
+  school          School?         @relation("SchoolPurchaseRequests", fields: [schoolId], references: [id])
+  requestedById   String
+  requestedBy     User            @relation("RequestedPurchases", fields: [requestedById], references: [id])
+  reviewedById    String?
+  reviewedBy      User?           @relation("ReviewedPurchases", fields: [reviewedById], references: [id])
+
+  title           String
+  description     String
+  category        PurchaseCategory @default(OTHER)
+  estimatedCost   Float
+  currency        String           @default("USD")
+  quantity        Int              @default(1)
+  vendor          String?
+  urgency         String           @default("NORMAL")
+  status          RequestStatus    @default(PENDING)
+  justification   String?
+  attachmentUrl   String?
+  reviewNotes     String?
+  approvedCost    Float?
+
+  requestedAt     DateTime         @default(now())
+  reviewedAt      DateTime?
+  neededBy        DateTime?
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model Requisition {
+  id              String              @id @default(cuid())
+  organizationId  String
+  organization    Organization        @relation("OrgRequisitions", fields: [organizationId], references: [id])
+  schoolId        String?
+  school          School?             @relation("SchoolRequisitions", fields: [schoolId], references: [id])
+  requestedById   String
+  requestedBy     User                @relation("RequestedRequisitions", fields: [requestedById], references: [id])
+  reviewedById    String?
+  reviewedBy      User?               @relation("ReviewedRequisitions", fields: [reviewedById], references: [id])
+
+  title           String
+  description     String
+  category        RequisitionCategory @default(OTHER)
+  items           Json
+  totalEstimated  Float               @default(0)
+  status          RequestStatus       @default(PENDING)
+  urgency         String              @default("NORMAL")
+  deliveryDate    DateTime?
+  reviewNotes     String?
+  attachmentUrl   String?
+
+  // Pricing step (Requisitions Manager adds prices)
+  pricedItems         Json?
+  totalPriced         Float?
+  pricedById          String?
+  pricedAt            DateTime?
+
+  // Approval step
+  rejectionReason     String?
+
+  // Finance pre-approval step (Finance Officer approves before owner)
+  financeApprovedAt    DateTime?
+  financeApprovedById  String?
+  isEscalatedToOwner   Boolean           @default(false)
+
+  // Money release step (Finance releases funds to RM)
+  moneyReleasedAt      DateTime?
+  moneyReleasedById    String?
+
+  // RM confirms money received
+  moneyReceivedAt      DateTime?
+  moneyReceivedById    String?
+
+  // RM purchases items + uploads invoice
+  purchasedAt          DateTime?
+  purchasedById        String?
+  purchaseInvoiceUrls  String[]          @default([])
+
+  // Store receipt (what was actually received vs ordered)
+  storeReceivedItems   Json?             // [{name,orderedQty,receivedQty,unit,note}]
+  storeNotes           String?
+  storeConfirmedAt     DateTime?
+  storeConfirmedById   String?
+  storeHasIssue        Boolean           @default(false)
+
+  // Requester collection
+  collectedAt          DateTime?
+
+  // Legacy finance release
+  financeReleasedAt    DateTime?
+  financeReleasedById  String?
+
+  // Items arrived (legacy)
+  itemsArrivedAt      DateTime?
+  itemsArrivedById    String?
+  invoiceUrls         String[]          @default([])
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model JobApplication {
+  id              String               @id @default(cuid())
+  organizationId  String
+  organization    Organization         @relation("OrgJobApplications", fields: [organizationId], references: [id])
+  schoolId        String?
+  school          School?              @relation("SchoolJobApplications", fields: [schoolId], references: [id])
+  reviewedById    String?
+  reviewedBy      User?                @relation("ReviewedJobApplications", fields: [reviewedById], references: [id])
+
+  fullName        String
+  email           String
+  phone           String?
+  nationality     String?
+  position        String
+  department      String?
+  employmentType  EmploymentType       @default(FULL_TIME)
+  expectedSalary  Float?
+  currency        String               @default("USD")
+  experience      Int                  @default(0)
+  education       String?
+  university      String?
+  skills          String[]             @default([])
+  languages       String[]             @default([])
+  coverLetter     String?
+  cvUrl           String?
+  linkedIn        String?
+  portfolio       String?
+  availableFrom   DateTime?
+
+  status          JobApplicationStatus @default(RECEIVED)
+  interviewDate   DateTime?
+  interviewNotes  String?
+  offerSalary     Float?
+  rejectionReason String?
+  internalNotes   String?
+
+  // Owner hire-approval workflow
+  ownerApprovalStatus      String?   // PENDING | APPROVED | REJECTED
+  ownerApprovalNote        String?   // owner's rejection reason
+  ownerApprovalRequestedAt DateTime?
+  ownerApprovedAt          DateTime?
+
+  appliedAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
 }
