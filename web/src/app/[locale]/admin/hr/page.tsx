@@ -19,30 +19,30 @@ export default function HRPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['hr-stats'],
-    queryFn: () => apiClient.get('/hr/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/hr/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: staff, isLoading: staffLoading } = useQuery({
     queryKey: ['hr-staff', search],
-    queryFn: () => apiClient.get(`/hr/staff${search ? `?search=${search}` : ''}`).then((r) => r.data),
+    queryFn: () => apiClient.get(`/hr/staff${search ? `?search=${search}` : ''}`).then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'staff',
   })
 
   const { data: leaves, isLoading: leavesLoading } = useQuery({
     queryKey: ['hr-leaves', leaveFilter],
-    queryFn: () => apiClient.get(`/hr/leaves${leaveFilter ? `?status=${leaveFilter}` : ''}`).then((r) => r.data),
+    queryFn: () => apiClient.get(`/hr/leaves${leaveFilter ? `?status=${leaveFilter}` : ''}`).then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'leaves',
   })
 
   const { data: contracts } = useQuery({
     queryKey: ['hr-contracts'],
-    queryFn: () => apiClient.get('/hr/contracts').then((r) => r.data),
+    queryFn: () => apiClient.get('/hr/contracts').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'contracts',
   })
 
   const { data: reviews } = useQuery({
     queryKey: ['hr-reviews'],
-    queryFn: () => apiClient.get('/hr/reviews').then((r) => r.data),
+    queryFn: () => apiClient.get('/hr/reviews').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'reviews',
   })
 

@@ -24,7 +24,7 @@ export default function StorePage() {
 
   const { data: stats } = useQuery({
     queryKey: ['store-stats'],
-    queryFn: () => apiClient.get('/store/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/store/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: items, isLoading } = useQuery({
@@ -33,13 +33,13 @@ export default function StorePage() {
       apiClient.get(`/store/items?${new URLSearchParams({
         ...(search ? { search } : {}),
         ...(lowStockOnly ? { lowStock: 'true' } : {}),
-      })}`).then((r) => r.data),
+      })}`).then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'inventory',
   })
 
   const { data: movements, isLoading: movementsLoading } = useQuery({
     queryKey: ['store-movements'],
-    queryFn: () => apiClient.get('/store/movements').then((r) => r.data),
+    queryFn: () => apiClient.get('/store/movements').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'movements',
   })
 

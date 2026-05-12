@@ -13,24 +13,24 @@ export default function ReceptionistPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['receptionist-stats'],
-    queryFn: () => apiClient.get('/receptionist/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/receptionist/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: visitors, isLoading: visitorsLoading } = useQuery({
     queryKey: ['receptionist-visitors', dateFilter],
-    queryFn: () => apiClient.get(`/receptionist/visitors?date=${dateFilter}`).then((r) => r.data),
+    queryFn: () => apiClient.get(`/receptionist/visitors?date=${dateFilter}`).then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'visitors',
   })
 
   const { data: apps } = useQuery({
     queryKey: ['admission-apps-receptionist'],
-    queryFn: () => apiClient.get('/admission/applications?status=SUBMITTED').then((r) => r.data),
+    queryFn: () => apiClient.get('/admission/applications?status=SUBMITTED').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'admission',
   })
 
   const { data: admissionStats } = useQuery({
     queryKey: ['admission-stats-receptionist'],
-    queryFn: () => apiClient.get('/admission/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/admission/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const checkIn = useMutation({

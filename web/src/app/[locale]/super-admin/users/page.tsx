@@ -44,7 +44,7 @@ export default function SuperAdminUsersPage() {
     queryKey: ['sa-users', search, role, page],
     queryFn: () =>
       api.get('/super-admin/users', { params: { search: search || undefined, role: role || undefined, page, limit } })
-        .then((r) => r.data),
+        .then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const toggleMutation = useMutation({

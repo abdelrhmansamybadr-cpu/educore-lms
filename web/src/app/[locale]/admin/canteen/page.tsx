@@ -31,13 +31,13 @@ export default function CanteenPage() {
 
   const { data: items, isLoading: itemsLoading } = useQuery({
     queryKey: ['canteen-items'],
-    queryFn: () => apiClient.get('/canteen/items').then((r) => r.data),
+    queryFn: () => apiClient.get('/canteen/items').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'menu',
   })
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
     queryKey: ['canteen-orders', orderStatusFilter],
-    queryFn: () => apiClient.get(`/canteen/orders${orderStatusFilter ? `?status=${orderStatusFilter}` : ''}`).then((r) => r.data),
+    queryFn: () => apiClient.get(`/canteen/orders${orderStatusFilter ? `?status=${orderStatusFilter}` : ''}`).then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'orders',
   })
 

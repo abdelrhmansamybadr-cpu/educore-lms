@@ -6,12 +6,12 @@ import { apiClient } from '@/lib/api-client'
 export default function CounselorDashboard() {
   const { data: atRisk } = useQuery({
     queryKey: ['counselor-at-risk'],
-    queryFn: () => apiClient.get('/analytics/at-risk').then((r) => r.data),
+    queryFn: () => apiClient.get('/analytics/at-risk').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: mentalHealth } = useQuery({
     queryKey: ['counselor-mental-health'],
-    queryFn: () => apiClient.get('/health/mental-health?flagged=true').then((r) => r.data).catch(() => []),
+    queryFn: () => apiClient.get('/health/mental-health?flagged=true').then((r) => r.data?.data ?? r.data ?? []).catch(() => []),
   })
 
   const riskColor: Record<string, string> = {

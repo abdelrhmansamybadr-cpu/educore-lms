@@ -12,18 +12,18 @@ export default function BoardingPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['boarding-stats'],
-    queryFn: () => apiClient.get('/boarding/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/boarding/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: rooms, isLoading: roomsLoading } = useQuery({
     queryKey: ['boarding-rooms'],
-    queryFn: () => apiClient.get('/boarding/rooms').then((r) => r.data),
+    queryFn: () => apiClient.get('/boarding/rooms').then((r) => r.data?.data ?? r.data ?? []),
     enabled: tab === 'rooms',
   })
 
   const { data: healthVisits } = useQuery({
     queryKey: ['boarding-health'],
-    queryFn: () => apiClient.get('/health/visits?limit=20').then((r) => r.data).catch(() => []),
+    queryFn: () => apiClient.get('/health/visits?limit=20').then((r) => r.data?.data ?? r.data ?? []).catch(() => []),
     enabled: tab === 'health',
   })
 

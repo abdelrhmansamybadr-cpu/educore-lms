@@ -29,7 +29,7 @@ export default function AdmissionPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['admission-stats'],
-    queryFn: () => apiClient.get('/admission/stats').then((r) => r.data),
+    queryFn: () => apiClient.get('/admission/stats').then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const { data: applications, isLoading } = useQuery({
@@ -38,7 +38,7 @@ export default function AdmissionPage() {
       apiClient.get(`/admission/applications?${new URLSearchParams({
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(search ? { search } : {}),
-      })}`).then((r) => r.data),
+      })}`).then((r) => r.data?.data ?? r.data ?? []),
   })
 
   const createApp = useMutation({
