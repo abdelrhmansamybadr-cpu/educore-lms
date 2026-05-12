@@ -1,12 +1,15 @@
-import { Sidebar } from '@/components/layout/Sidebar'
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
-export default function CounselorLayout({ children }: { children: React.ReactNode }) {
+export default function CounselorLayout({
+  children,
+  params: { locale },
+}: {
+  children: React.ReactNode
+  params: { locale: string }
+}) {
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <DashboardLayout basePath={`/${locale}/counselor`}>
+      {children}
+    </DashboardLayout>
   )
 }

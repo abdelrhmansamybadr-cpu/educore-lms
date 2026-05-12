@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardHeader, CardBody, Button, Input, Badge } from '@/components/ui'
+import { Card, CardHeader, CardBody, Button, Badge } from '@/components/ui'
 import { Shield, Globe, Bell, Database, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -36,23 +36,23 @@ export default function SuperAdminSettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between py-2 border-b border-neutral-100 dark:border-neutral-700">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Version</span>
-                <Badge variant="primary" size="sm">v{VERSION}</Badge>
+                <Badge variant="primary">v{VERSION}</Badge>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-neutral-100 dark:border-neutral-700">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Environment</span>
-                <Badge variant="success" size="sm">Production</Badge>
+                <Badge variant="success">Production</Badge>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-neutral-100 dark:border-neutral-700">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Database</span>
-                <Badge variant="success" size="sm">PostgreSQL 16</Badge>
+                <Badge variant="success">PostgreSQL 16</Badge>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-neutral-100 dark:border-neutral-700">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Cache</span>
-                <Badge variant="success" size="sm">Redis 7</Badge>
+                <Badge variant="success">Redis 7</Badge>
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Storage</span>
-                <Badge variant="accent" size="sm">AWS S3</Badge>
+                <Badge variant="accent">AWS S3</Badge>
               </div>
             </div>
           </CardBody>
@@ -82,7 +82,7 @@ export default function SuperAdminSettingsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-neutral-400">{svc.latency}</span>
-                    <Badge variant="success" size="sm">Operational</Badge>
+                    <Badge variant="success">Operational</Badge>
                   </div>
                 </div>
               ))}
@@ -123,7 +123,7 @@ export default function SuperAdminSettingsPage() {
               </div>
               <Button
                 variant={maintenance ? 'primary' : 'outline'}
-                size="sm"
+               
                 onClick={handleSaveMaintenance}
                 className="w-full"
               >
@@ -154,7 +154,7 @@ export default function SuperAdminSettingsPage() {
                     <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{setting.label}</p>
                     <p className="text-xs text-neutral-500 mt-0.5">{setting.desc}</p>
                   </div>
-                  <Badge variant={setting.enabled ? 'success' : 'default'} size="sm">
+                  <Badge variant={setting.enabled ? 'success' : 'default'}>
                     {setting.enabled ? 'On' : 'Off'}
                   </Badge>
                 </div>
@@ -183,7 +183,7 @@ export default function SuperAdminSettingsPage() {
               ].map((n) => (
                 <div key={n.label} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-xl">
                   <span className="text-sm text-neutral-700 dark:text-neutral-300">{n.label}</span>
-                  <Badge variant={n.enabled ? 'success' : 'default'} size="sm">{n.enabled ? 'On' : 'Off'}</Badge>
+                  <Badge variant={n.enabled ? 'success' : 'default'}>{n.enabled ? 'On' : 'Off'}</Badge>
                 </div>
               ))}
             </div>

@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Badge, Skeleton, StatsCard } from '@/components/ui'
-import { Building2, Users, GraduationCap, DollarSign, Server, AlertCircle, TrendingUp } from 'lucide-react'
+import { Building2, Users, GraduationCap, DollarSign, Server } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import Link from 'next/link'
 

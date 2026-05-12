@@ -7,9 +7,6 @@ import { Card, CardHeader, CardBody, Badge, Skeleton } from '@/components/ui'
 import { Users, BookOpen, TrendingUp, AlertTriangle, BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e', B: '#3b82f6', C: '#f59e0b', D: '#f97316', F: '#ef4444',
-}
 
 export default function AdminAnalyticsPage() {
   const locale = useLocale()

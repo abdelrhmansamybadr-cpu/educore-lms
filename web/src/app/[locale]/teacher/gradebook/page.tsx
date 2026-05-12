@@ -13,7 +13,6 @@ export default function GradebookPage() {
   const queryClient = useQueryClient()
 
   const [selectedCourse, setSelectedCourse] = useState('')
-  const [editingCell, setEditingCell] = useState<{ studentId: string; type: string; refId: string } | null>(null)
   const [pendingGrades, setPendingGrades] = useState<Record<string, { points: number; maxPoints: number }>>({})
   const [saving, setSaving] = useState(false)
 
@@ -33,7 +32,7 @@ export default function GradebookPage() {
     try {
       await Promise.all(
         Object.entries(pendingGrades).map(([key, value]) => {
-          const [studentId, type, refId] = key.split('::')
+          const [studentId] = key.split('::')
           return api.post('/gradebook/grade', {
             studentId,
             courseId: selectedCourse,
@@ -48,9 +47,6 @@ export default function GradebookPage() {
       setSaving(false)
     }
   }
-
-  const getCellKey = (studentId: string, type: string, refId: string) => `${studentId}::${type}::${refId}`
-
 
   // API returns array of { studentId, student: { name, avatar }, grades: [...], average, letterGrade }
   const students = Array.isArray(gradebook) ? gradebook : []

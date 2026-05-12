@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
@@ -35,9 +35,10 @@ export class ParentService {
 
   async getChildDetails(parentId: string, studentId: string) {
     // Verify relationship
-    await this.prisma.parentStudentLink.findFirstOrThrow({
+    const link = await this.prisma.parentStudentLink.findFirst({
       where: { parentId, studentId },
     })
+    if (!link) throw new NotFoundException('Child not linked to this parent')
 
     const student = await this.prisma.user.findUnique({
       where: { id: studentId },

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Button, Badge, Input, Select, Avatar, Spinner, EmptyState } from '@/components/ui'
+import { Button, Badge, Input, Avatar, Spinner, EmptyState } from '@/components/ui'
 import { Search, UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface User {
@@ -73,23 +73,23 @@ export default function SuperAdminUsersPage() {
             leftIcon={<Search size={16} />}
           />
         </div>
-        <Select
+        <select
           value={role}
           onChange={(e) => { setRole(e.target.value); setPage(1) }}
-          className="w-full sm:w-52"
+          className="w-full sm:w-52 rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">All Roles</option>
           {ROLES.map((r) => (
             <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
           ))}
-        </Select>
+        </select>
       </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Spinner size="lg" />
+            <Spinner />
           </div>
         ) : users.length === 0 ? (
           <EmptyState title="No users found" description="Try adjusting your search or filters." />
@@ -123,7 +123,7 @@ export default function SuperAdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={roleBadgeVariant(u.role)} size="sm">
+                        <Badge variant={roleBadgeVariant(u.role)}>
                           {u.role.replace(/_/g, ' ')}
                         </Badge>
                       </td>
@@ -131,7 +131,7 @@ export default function SuperAdminUsersPage() {
                         {u.school?.name ?? <span className="text-neutral-400 italic">Platform</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={u.isActive ? 'success' : 'danger'} size="sm">
+                        <Badge variant={u.isActive ? 'success' : 'danger'}>
                           {u.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </td>

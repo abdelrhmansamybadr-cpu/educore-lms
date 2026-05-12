@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Badge, Skeleton, Button, Input, Select } from '@/components/ui'
-import { Building2, Plus, Search, Trash2, Edit, ToggleLeft, ToggleRight, X } from 'lucide-react'
+import { Building2, Plus, Search, Trash2, ToggleLeft, ToggleRight, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CURRICULUM_OPTIONS = [
