@@ -12,8 +12,8 @@ export class NotificationsController {
   @Get()
   @ApiOperation({ summary: 'Get user notifications' })
   @ApiQuery({ name: 'page', required: false, type: Number })
-  getNotifications(@CurrentUser('id') userId: string, @Query('page') page?: number) {
-    return this.notifications.getUserNotifications(userId, page)
+  getNotifications(@CurrentUser('id') userId: string, @Query('page') page?: string) {
+    return this.notifications.getUserNotifications(userId, page ? parseInt(page, 10) : 1)
   }
 
   @Patch(':id/read')

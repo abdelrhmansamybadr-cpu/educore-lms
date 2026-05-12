@@ -5,6 +5,7 @@ packages:
   - "desktop"
   - "packages/*"
 onlyBuiltDependencies:
+  - "electron"
   - "@nestjs/core"
   - "@prisma/client"
   - "@prisma/engines"
