@@ -46,14 +46,17 @@ export class StoreController {
 
   @Get('requests')
   @Roles(...ALL_SCHOOL_ROLES)
-  @ApiOperation({ summary: 'List store item requests (admin: all, employee: own)' })
+  @ApiOperation({ summary: 'List store item requests (admin: all, employee: own). Pass ?mine=true to always return only own requests.' })
   getItemRequests(
     @CurrentUser('id') userId: string,
     @CurrentUser('schoolId') schoolId: string,
     @CurrentUser('role') role: string,
+    @Query('mine') mine?: string,
   ) {
     const adminRoles = new Set(['SCHOOL_ADMIN', 'STORE_MANAGER', 'IT_ADMIN', 'VICE_PRINCIPAL', 'FINANCE_OFFICER', 'SUPER_ADMIN', 'DEVELOPER'])
-    return this.storeService.getItemRequests(requireSchool(schoolId), userId, adminRoles.has(role))
+    // mine=true forces own-only even for admins (used for personal "My Requests" tab)
+    const isAdmin = mine !== 'true' && adminRoles.has(role)
+    return this.storeService.getItemRequests(requireSchool(schoolId), userId, isAdmin)
   }
 
   @Post('requests')

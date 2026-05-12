@@ -335,7 +335,7 @@ function StoreManagerView() {
   const isRtl = locale === 'ar'
   const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null)
   const [rejectNotes, setRejectNotes] = useState('')
-  const [activeTab, setActiveTab] = useState<'browse' | 'my-requests' | 'requests' | 'employees'>('browse')
+  const [activeTab, setActiveTab] = useState<'browse' | 'approval' | 'my-requests'>('browse')
   const [search, setSearch] = useState('')
   const qc = useQueryClient()
 
@@ -348,17 +348,18 @@ function StoreManagerView() {
     enabled: activeTab === 'browse',
   })
 
+  // All school requests — for admin approval workflow
   const { data: allRequests = [], isLoading: reqLoading } = useQuery<any[]>({
     queryKey: ['company-store-all-requests'],
     queryFn: () => apiClient.get('/store/requests').then((r) => r.data?.data ?? r.data ?? []),
-    enabled: activeTab === 'requests' || activeTab === 'employees',
+    enabled: activeTab === 'approval',
   })
 
-  const { data: employeeSummary = [], isLoading: empLoading } = useQuery<any[]>({
-    queryKey: ['company-store-employee-summary'],
-    queryFn: () =>
-      apiClient.get('/store/requests/employees').then((r) => r.data?.data ?? r.data ?? []),
-    enabled: activeTab === 'employees',
+  // Current user's own requests only
+  const { data: myRequests = [], isLoading: myReqLoading } = useQuery<any[]>({
+    queryKey: ['company-store-my-requests'],
+    queryFn: () => apiClient.get('/store/requests?mine=true').then((r) => r.data?.data ?? r.data ?? []),
+    enabled: activeTab === 'my-requests',
   })
 
   const approveMutation = useMutation({
@@ -366,6 +367,7 @@ function StoreManagerView() {
     onSuccess: () => {
       toast.success('Approved — employee notified to come collect')
       qc.invalidateQueries({ queryKey: ['company-store-all-requests'] })
+      qc.invalidateQueries({ queryKey: ['company-store-my-requests'] })
     },
     onError: (err: any) => toast.error(getApiError(err, 'Failed to approve request')),
   })
@@ -376,6 +378,7 @@ function StoreManagerView() {
     onSuccess: () => {
       toast.success('Request rejected')
       qc.invalidateQueries({ queryKey: ['company-store-all-requests'] })
+      qc.invalidateQueries({ queryKey: ['company-store-my-requests'] })
       setRejectModal(null)
       setRejectNotes('')
     },
@@ -398,9 +401,9 @@ function StoreManagerView() {
   const itemList = Array.isArray(items) ? items : []
 
   const TABS = [
-    { key: 'browse',    label: isRtl ? 'الأصناف'         : 'All Items',         icon: <Package size={14} /> },
-    { key: 'requests',  label: isRtl ? 'طلبات الموظفين'  : 'Employee Requests',  icon: <Truck size={14} />,  badge: pendingReqs.length },
-    { key: 'employees', label: isRtl ? 'سجل الموظفين'    : 'Employee History',   icon: <User size={14} /> },
+    { key: 'browse',       label: isRtl ? 'الأصناف'    : 'All Items',       icon: <Package size={14} /> },
+    { key: 'approval',     label: isRtl ? 'الموافقة'   : 'Approval Queue',  icon: <Truck size={14} />,  badge: pendingReqs.length },
+    { key: 'my-requests',  label: isRtl ? 'طلباتي'     : 'My Requests',     icon: <User size={14} /> },
   ]
 
   return (
@@ -503,8 +506,8 @@ function StoreManagerView() {
         </>
       )}
 
-      {/* ── Requests Tab ── */}
-      {activeTab === 'requests' && (
+      {/* ── Approval Queue Tab (all employees — admin workflow) ── */}
+      {activeTab === 'approval' && (
         <div className="space-y-6">
           {reqLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -646,51 +649,43 @@ function StoreManagerView() {
         </div>
       )}
 
-      {/* ── Employee History Tab ── */}
-      {activeTab === 'employees' && (
-        <div className="space-y-4 max-w-2xl">
-          {empLoading ? (
+      {/* ── My Requests Tab (personal — current user only) ── */}
+      {activeTab === 'my-requests' && (
+        <div className="space-y-3 max-w-2xl">
+          {myReqLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-24" />
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-16" />
             ))
-          ) : (employeeSummary as any[]).length === 0 ? (
+          ) : (myRequests as any[]).length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <User size={48} className="mx-auto mb-3 opacity-20" />
-              <p>{isRtl ? 'لا يوجد سجل بعد' : 'No employee history yet.'}</p>
+              <p>{isRtl ? 'لم تقدم أي طلبات بعد' : "You haven't made any store requests yet."}</p>
             </div>
           ) : (
-            (employeeSummary as any[]).map((emp: any) => (
-              <div key={emp.userId} className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700 text-sm flex-shrink-0">
-                    {emp.name?.[0] ?? '?'}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{emp.name || (isRtl ? 'غير معروف' : 'Unknown')}</p>
-                    <p className="text-xs text-gray-400">
-                      {emp.requests.length} {isRtl ? 'طلب' : 'requests'}
-                    </p>
-                  </div>
+            (myRequests as any[]).map((req: any) => (
+              <div key={req.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">📦</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900">{req.item?.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {req.quantity} {req.item?.unit} · {new Date(req.createdAt).toLocaleDateString()}
+                  </p>
+                  {req.reason && <p className="text-xs text-gray-400 italic mt-0.5">"{req.reason}"</p>}
+                  {req.notes && <p className="text-xs text-indigo-600 mt-0.5">{isRtl ? 'ملاحظة: ' : 'Note: '}{req.notes}</p>}
+                  {req.status === 'APPROVED' && (
+                    <p className="text-xs text-blue-600 mt-0.5 font-medium">✓ {isRtl ? 'موافق عليه — توجه للمخزن' : 'Approved — go to the store to collect'}</p>
+                  )}
+                  {req.status === 'COLLECTED' && req.collectedAt && (
+                    <p className="text-xs text-green-600 mt-0.5 font-medium">✓ {isRtl ? 'تم الاستلام' : 'Collected'} · {new Date(req.collectedAt).toLocaleDateString()}</p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  {(emp.requests as any[]).map((req: any) => (
-                    <div key={req.id} className="flex items-center gap-3 text-sm">
-                      <span
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                          REQUEST_STATUS_STYLE[req.status]
-                        }`}
-                      >
-                        {req.status}
-                      </span>
-                      <span className="text-gray-700">
-                        {req.item?.name} × {req.quantity} {req.item?.unit}
-                      </span>
-                      <span className="text-gray-400 text-xs ml-auto">
-                        {new Date(req.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${REQUEST_STATUS_STYLE[req.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {req.status === 'PENDING'   ? (isRtl ? 'بانتظار الموافقة' : 'Pending')
+                   : req.status === 'APPROVED'  ? (isRtl ? 'موافق عليه' : 'Approved')
+                   : req.status === 'REJECTED'  ? (isRtl ? 'مرفوض' : 'Rejected')
+                   : req.status === 'COLLECTED' ? (isRtl ? 'تم الاستلام' : 'Collected')
+                   : req.status}
+                </span>
               </div>
             ))
           )}

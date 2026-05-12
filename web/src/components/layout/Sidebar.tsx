@@ -7,11 +7,13 @@ import { useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
+import { useSchoolContext } from '@/stores/schoolContextStore'
 import {
   LayoutDashboard, BookOpen, ClipboardList, Brain, Users, Settings,
   ChevronLeft, ChevronRight, GraduationCap, BarChart2, MessageSquare,
   Bell, DollarSign, Laptop, Ticket, Video, Calendar, Library, Heart,
-  Trophy, CalendarDays, Bus,
+  Trophy, CalendarDays, Bus, Shield, ShoppingCart, Package, Briefcase,
+  Building2,
 } from 'lucide-react'
 
 interface NavItem {
@@ -21,7 +23,8 @@ interface NavItem {
   icon: React.ReactNode
   href: string
   badge?: number
-  module?: string  // if set, hidden when school has this module disabled
+  module?: string   // if set, hidden when school has this module disabled
+  orgLevel?: boolean // if true, shows "Org" badge when in all-schools context
 }
 
 interface NavSection {
@@ -31,11 +34,164 @@ interface NavSection {
   items: NavItem[]
 }
 
-const getNavSections = (_locale: string, basePath: string): NavSection[] => {
-  // Determine role from basePath: /ar/admin, /ar/teacher, /ar/student, /ar/parent
-  const role = basePath.split('/').pop() || ''
+
+const getNavSections = (_locale: string, basePath: string, userRole?: string): NavSection[] => {
+  // Determine path segment: admin, teacher, student, parent, super-admin
+  const pathRole = basePath.split('/').pop() || ''
 
   const msgPath = basePath.replace(/\/(admin|teacher|student|parent|super-admin)$/, '/messaging')
+
+  // ── Role-specific sidebars for staff roles that land on /admin ─────────────
+  if (pathRole === 'admin' && userRole && userRole !== 'SCHOOL_ADMIN' && userRole !== 'VICE_PRINCIPAL' && userRole !== 'ACADEMIC_DIRECTOR' && userRole !== 'DEPARTMENT_HEAD') {
+
+    // Derive locale prefix from basePath (e.g. /ar/admin → /ar)
+    const localePrefix = basePath.split('/').slice(0, 2).join('/')
+
+    // Shared personal section available to all staff
+    const personalSection: NavSection = {
+      key: 'personal', labelAr: 'الشخصية', labelEn: 'Personal',
+      items: [
+        { key: 'dashboard', label: 'Dashboard',  labelAr: 'لوحة التحكم',     icon: <LayoutDashboard size={18} />, href: `${basePath}/dashboard` },
+        { key: 'my-hr',     label: 'My HR',      labelAr: 'شؤوني الوظيفية',  icon: <Users size={18} />,          href: `${basePath}/hr` },
+        { key: 'store',     label: 'Store',      labelAr: 'المخزن',           icon: <Package size={18} />,        href: `${localePrefix}/company-store`, module: 'STORE' },
+        { key: 'canteen',   label: 'Canteen',    labelAr: 'المقصف',           icon: <Brain size={18} />,          href: `${basePath}/canteen`, module: 'CANTEEN' },
+        { key: 'messaging', label: 'Messages',   labelAr: 'الرسائل',          icon: <MessageSquare size={18} />,  href: msgPath },
+      ],
+    }
+
+    if (userRole === 'IT_ADMIN') return [
+      personalSection,
+      { key: 'work', labelAr: 'العمل', labelEn: 'My Work',
+        items: [
+          { key: 'devices', label: 'Devices',    labelAr: 'الأجهزة',    icon: <Laptop size={18} />,  href: `${basePath}/devices` },
+          { key: 'tickets', label: 'IT Support', labelAr: 'الدعم الفني', icon: <Ticket size={18} />,  href: `${basePath}/tickets` },
+        ] },
+    ]
+
+    if (userRole === 'HR_MANAGER') return [
+      { key: 'main', labelAr: 'الرئيسية', labelEn: 'Main',
+        items: [
+          { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: <LayoutDashboard size={18} />, href: `${basePath}/dashboard` },
+        ] },
+      { key: 'work', labelAr: 'الموارد البشرية', labelEn: 'HR Management',
+        items: [
+          { key: 'hr',        label: 'HR',        labelAr: 'الموارد البشرية', icon: <Users size={18} />,         href: `${basePath}/hr` },
+          { key: 'users',     label: 'Staff',     labelAr: 'الموظفون',        icon: <GraduationCap size={18} />, href: `${basePath}/users` },
+          { key: 'messaging', label: 'Messages',  labelAr: 'الرسائل',         icon: <MessageSquare size={18} />, href: msgPath },
+        ] },
+    ]
+
+    if (userRole === 'FINANCE_OFFICER') return [
+      personalSection,
+      { key: 'work', labelAr: 'المالية', labelEn: 'Finance',
+        items: [
+          { key: 'finance', label: 'Finance', labelAr: 'المالية', icon: <DollarSign size={18} />, href: `${basePath}/finance` },
+        ] },
+    ]
+
+    if (userRole === 'LIBRARIAN') return [
+      personalSection,
+      { key: 'work', labelAr: 'المكتبة', labelEn: 'Library',
+        items: [
+          { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library` },
+        ] },
+    ]
+
+    if (userRole === 'NURSE') return [
+      personalSection,
+      { key: 'work', labelAr: 'الصحة', labelEn: 'Health',
+        items: [
+          { key: 'health', label: 'Health', labelAr: 'الصحة', icon: <Heart size={18} />, href: `${basePath}/health` },
+        ] },
+    ]
+
+    if (userRole === 'TRANSPORT_MANAGER') return [
+      personalSection,
+      { key: 'work', labelAr: 'النقل', labelEn: 'Transport',
+        items: [
+          { key: 'transport', label: 'Transport', labelAr: 'النقل', icon: <Bus size={18} />, href: `${basePath}/transport` },
+        ] },
+    ]
+
+    if (userRole === 'RECEPTIONIST') return [
+      personalSection,
+      { key: 'work', labelAr: 'الاستقبال', labelEn: 'Reception',
+        items: [
+          { key: 'receptionist', label: 'Reception', labelAr: 'الاستقبال', icon: <Bell size={18} />, href: `${basePath}/receptionist` },
+        ] },
+    ]
+
+    if (userRole === 'ADMISSION_OFFICER') return [
+      personalSection,
+      { key: 'work', labelAr: 'القبول', labelEn: 'Admissions',
+        items: [
+          { key: 'admission', label: 'Admission', labelAr: 'القبول', icon: <GraduationCap size={18} />, href: `${basePath}/admission` },
+        ] },
+    ]
+
+    if (userRole === 'CANTEEN_MANAGER') return [
+      personalSection,
+      { key: 'work', labelAr: 'المقصف', labelEn: 'Canteen',
+        items: [
+          { key: 'canteen', label: 'Canteen', labelAr: 'المقصف', icon: <Brain size={18} />, href: `${basePath}/canteen` },
+        ] },
+    ]
+
+    if (userRole === 'STORE_MANAGER') return [
+      personalSection,
+      { key: 'work', labelAr: 'المخزن', labelEn: 'Store',
+        items: [
+          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Laptop size={18} />, href: `${basePath}/store` },
+        ] },
+    ]
+
+    if (userRole === 'SUPPORT_AGENT') return [
+      personalSection,
+      { key: 'work', labelAr: 'الدعم الفني', labelEn: 'Support',
+        items: [
+          { key: 'tickets', label: 'Support Tickets', labelAr: 'تذاكر الدعم', icon: <Ticket size={18} />, href: `${basePath}/tickets` },
+        ] },
+    ]
+
+    if (userRole === 'EVENT_COORDINATOR') return [
+      personalSection,
+      { key: 'work', labelAr: 'الفعاليات', labelEn: 'Events',
+        items: [
+          { key: 'events', label: 'Events', labelAr: 'الفعاليات', icon: <CalendarDays size={18} />, href: `${basePath}/events` },
+        ] },
+    ]
+
+    if (userRole === 'MATRON') return [
+      personalSection,
+      { key: 'work', labelAr: 'السكن الداخلي', labelEn: 'Boarding',
+        items: [
+          { key: 'boarding', label: 'Boarding', labelAr: 'السكن الداخلي', icon: <Video size={18} />, href: `${basePath}/boarding` },
+        ] },
+    ]
+
+    if (userRole === 'ACTIVITIES_COORDINATOR') return [
+      personalSection,
+      { key: 'work', labelAr: 'الأنشطة', labelEn: 'Activities',
+        items: [
+          { key: 'events',   label: 'Events',   labelAr: 'الفعاليات',  icon: <CalendarDays size={18} />, href: `${basePath}/events` },
+          { key: 'tickets',  label: 'Support',  labelAr: 'الدعم',      icon: <Ticket size={18} />,      href: `${basePath}/tickets` },
+        ] },
+    ]
+
+    if (userRole === 'REQUISITIONS_MANAGER') return [
+      personalSection,
+      { key: 'work', labelAr: 'المستلزمات', labelEn: 'Requisitions',
+        items: [
+          { key: 'requisitions', label: 'Requisitions', labelAr: 'طلبات التوريد', icon: <Package size={18} />, href: `${basePath}/requisitions` },
+        ] },
+    ]
+  }
+
+  // Locale prefix for cross-role links (e.g. /ar or /en)
+  const localePrefix = basePath.split('/').slice(0, 2).join('/')
+
+  // Use pathRole for remaining cases
+  const role = pathRole
 
   if (role === 'super-admin') {
     return [
@@ -46,16 +202,20 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
         ],
       },
       {
-        key: 'platform', labelAr: 'المنصة', labelEn: 'Platform',
+        key: 'organization', labelAr: 'المؤسسة', labelEn: 'Organization',
         items: [
-          { key: 'schools', label: 'Schools', labelAr: 'المدارس', icon: <GraduationCap size={18} />, href: `${basePath}/schools` },
-          { key: 'users', label: 'All Users', labelAr: 'جميع المستخدمين', icon: <Users size={18} />, href: `${basePath}/users` },
+          { key: 'schools',           label: 'Schools',           labelAr: 'المدارس',            icon: <Building2 size={18} />,    href: `${basePath}/schools` },
+          { key: 'purchase-requests', label: 'Purchase Requests', labelAr: 'طلبات الشراء',        icon: <ShoppingCart size={18} />, href: `${basePath}/purchase-requests` },
+          { key: 'requisitions',      label: 'Requisitions',      labelAr: 'طلبات التوريد',       icon: <Package size={18} />,      href: `${basePath}/requisitions` },
+          { key: 'jobs',              label: 'Job Applications',  labelAr: 'طلبات التوظيف',       icon: <Briefcase size={18} />,    href: `${basePath}/jobs` },
         ],
       },
       {
-        key: 'settings', labelAr: 'الإعدادات', labelEn: 'Settings',
+        key: 'management', labelAr: 'الإدارة', labelEn: 'Management',
         items: [
-          { key: 'settings', label: 'Settings', labelAr: 'الإعدادات', icon: <Settings size={18} />, href: `${basePath}/settings` },
+          { key: 'employees', label: 'Employees',  labelAr: 'الموظفون',    icon: <Users size={18} />,    href: `${basePath}/employees` },
+          { key: 'users',     label: 'All Users',  labelAr: 'المستخدمون', icon: <GraduationCap size={18} />, href: `${basePath}/users` },
+          { key: 'settings',  label: 'Settings',   labelAr: 'الإعدادات',  icon: <Settings size={18} />, href: `${basePath}/settings` },
         ],
       },
     ]
@@ -72,6 +232,8 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
       {
         key: 'support', labelAr: 'دعم الطلاب', labelEn: 'Student Support',
         items: [
+          { key: 'student-affairs', label: 'Student Affairs', labelAr: 'شئون الطلاب', icon: <Shield size={18} />, href: basePath.replace('/counselor', '/admin') + '/student-affairs' },
+          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
           { key: 'messaging', label: 'Messages', labelAr: 'الرسائل', icon: <MessageSquare size={18} />, href: msgPath },
         ],
       },
@@ -100,19 +262,20 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
         key: 'management', labelAr: 'الإدارة', labelEn: 'Management',
         items: [
           { key: 'users', label: 'Users', labelAr: 'المستخدمون', icon: <Users size={18} />, href: `${basePath}/users` },
-          { key: 'finance', label: 'Finance', labelAr: 'المالية', icon: <DollarSign size={18} />, href: `${basePath}/finance`, module: 'FINANCE' },
+          { key: 'finance', label: 'Finance', labelAr: 'المالية', icon: <DollarSign size={18} />, href: `${basePath}/finance`, module: 'FINANCE', orgLevel: true },
           { key: 'events', label: 'Events', labelAr: 'الفعاليات', icon: <CalendarDays size={18} />, href: `${basePath}/events`, module: 'EVENTS' },
           { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library`, module: 'LIBRARY' },
           { key: 'health', label: 'Health', labelAr: 'الصحة', icon: <Heart size={18} />, href: `${basePath}/health`, module: 'HEALTH' },
           { key: 'transport', label: 'Transport', labelAr: 'النقل', icon: <Bus size={18} />, href: `${basePath}/transport`, module: 'TRANSPORT' },
           { key: 'tickets', label: 'Support', labelAr: 'الدعم الفني', icon: <Ticket size={18} />, href: `${basePath}/tickets`, module: 'TICKETS' },
           { key: 'devices', label: 'Devices', labelAr: 'الأجهزة', icon: <Laptop size={18} />, href: `${basePath}/devices`, module: 'DEVICES' },
-          { key: 'hr', label: 'HR', labelAr: 'الموارد البشرية', icon: <Users size={18} />, href: `${basePath}/hr`, module: 'HR' },
+          { key: 'hr', label: 'HR', labelAr: 'الموارد البشرية', icon: <Users size={18} />, href: `${basePath}/hr`, module: 'HR', orgLevel: true },
           { key: 'canteen', label: 'Canteen', labelAr: 'المقصف', icon: <Brain size={18} />, href: `${basePath}/canteen`, module: 'CANTEEN' },
           { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Laptop size={18} />, href: `${basePath}/store`, module: 'STORE' },
           { key: 'admission', label: 'Admission', labelAr: 'القبول', icon: <GraduationCap size={18} />, href: `${basePath}/admission`, module: 'ADMISSION' },
           { key: 'receptionist', label: 'Reception', labelAr: 'الاستقبال', icon: <Bell size={18} />, href: `${basePath}/receptionist` },
           { key: 'boarding', label: 'Boarding', labelAr: 'السكن الداخلي', icon: <Video size={18} />, href: `${basePath}/boarding` },
+          { key: 'student-affairs', label: 'Student Affairs', labelAr: 'شئون الطلاب', icon: <Shield size={18} />, href: `${basePath}/student-affairs` },
         ],
       },
       {
@@ -158,6 +321,12 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
         ],
       },
       {
+        key: 'company', labelAr: 'الشركة', labelEn: 'Company',
+        items: [
+          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
+        ],
+      },
+      {
         key: 'ai', labelAr: 'الذكاء الاصطناعي', labelEn: 'AI Tools',
         items: [
           { key: 'ai-lesson', label: 'AI Lesson Planner', labelAr: 'مخطط الدروس', icon: <GraduationCap size={18} />, href: `${basePath}/ai-planner` },
@@ -195,6 +364,7 @@ const getNavSections = (_locale: string, basePath: string): NavSection[] => {
         key: 'extras', labelAr: 'أكثر', labelEn: 'More',
         items: [
           { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library` },
+          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
           { key: 'gamification', label: 'Rewards', labelAr: 'المكافآت', icon: <Trophy size={18} />, href: `${basePath}/gamification` },
         ],
       },
@@ -260,6 +430,8 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
   const locale = useLocale()
   const pathname = usePathname()
   const user = useAuthStore((s) => s.user)
+  const { selectedSchoolId, schools } = useSchoolContext()
+  const isOrgContext = !selectedSchoolId && schools.length > 1
   const isRtl = locale === 'ar'
   const ChevronIcon = isRtl
     ? (collapsed ? ChevronLeft : ChevronRight)
@@ -269,10 +441,20 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
   const [enabledModules, setEnabledModules] = React.useState<Set<string> | null>(null)
   React.useEffect(() => {
     if (!user?.schoolId) { setEnabledModules(null); return }
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/schools/my/modules`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+    const token = (() => {
+      try {
+        const stored = localStorage.getItem('educore-auth')
+        if (stored) return JSON.parse(stored)?.state?.token ?? null
+      } catch {}
+      return sessionStorage.getItem('access_token')
+    })()
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schools/my/modules`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('modules fetch failed')
+        return r.json()
+      })
       .then((data) => {
         const enabled = new Set<string>(
           (Array.isArray(data) ? data : data?.data ?? [])
@@ -284,7 +466,7 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
       .catch(() => setEnabledModules(null))
   }, [user?.schoolId])
 
-  const allSections = getNavSections(locale, basePath)
+  const allSections = getNavSections(locale, basePath, user?.role as string | undefined)
   // Filter items by module — if module not in enabled set, hide it
   // null enabledModules = still loading or super admin — show all
   const sections = enabledModules === null
@@ -322,6 +504,7 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
             )}
             {section.items.map((item) => {
               const isActive = pathname.startsWith(item.href)
+              const showOrgBadge = item.orgLevel && isOrgContext
               return (
                 <Link
                   key={item.key}
@@ -336,7 +519,16 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
                   )}
                 >
                   {item.icon}
-                  {!collapsed && <span>{isRtl ? item.labelAr : item.label}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">{isRtl ? item.labelAr : item.label}</span>
+                      {showOrgBadge && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-accent/20 text-accent border border-accent/30 leading-none shrink-0">
+                          {isRtl ? 'مؤسسة' : 'ORG'}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </Link>
               )
             })}

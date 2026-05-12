@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 const STORE_ADMIN_ROLES = new Set(['STORE_MANAGER', 'SCHOOL_ADMIN', 'VICE_PRINCIPAL', 'FINANCE_OFFICER', 'DEVELOPER', 'SUPER_ADMIN'])
 
-type AdminTab = 'inventory' | 'movements' | 'requests' | 'employees'
+type AdminTab = 'inventory' | 'movements' | 'approval' | 'my-requests'
 
 const movementTypeColor: Record<string, string> = {
   IN: 'bg-green-100 text-green-700',
@@ -248,6 +248,7 @@ function StoreAdminView() {
   const locale = useLocale()
   const isRtl = locale === 'ar'
   const [tab, setTab] = useState<AdminTab>('inventory')
+  const currentUserId = useAuthStore((s) => s.user?.id)
   const [search, setSearch] = useState('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
   const [showAddItem, setShowAddItem] = useState(false)
@@ -283,16 +284,18 @@ function StoreAdminView() {
     enabled: tab === 'movements',
   })
 
+  // All school requests — for admin approval workflow
   const { data: allRequests = [], isLoading: requestsLoading } = useQuery<any[]>({
     queryKey: ['store-all-requests'],
     queryFn: () => apiClient.get('/store/requests').then((r) => r.data?.data ?? r.data ?? []),
-    enabled: tab === 'requests',
+    enabled: tab === 'approval',
   })
 
-  const { data: employeeSummary = [], isLoading: empLoading } = useQuery<any[]>({
-    queryKey: ['store-employee-summary'],
-    queryFn: () => apiClient.get('/store/requests/employees').then((r) => r.data?.data ?? r.data ?? []),
-    enabled: tab === 'employees',
+  // Current user's own requests only
+  const { data: myRequests = [], isLoading: myRequestsLoading } = useQuery<any[]>({
+    queryKey: ['store-my-requests'],
+    queryFn: () => apiClient.get('/store/requests?mine=true').then((r) => r.data?.data ?? r.data ?? []),
+    enabled: tab === 'my-requests',
   })
 
   const { data: incomingReqs = [] } = useQuery<any[]>({
@@ -331,7 +334,11 @@ function StoreAdminView() {
 
   const approveMutation = useMutation({
     mutationFn: ({ id, notes }: { id: string; notes?: string }) => apiClient.patch(`/store/requests/${id}/approve`, { notes }),
-    onSuccess: () => { toast.success('Request approved — employee can collect'); queryClient.invalidateQueries({ queryKey: ['store-all-requests'] }) },
+    onSuccess: () => {
+      toast.success('Request approved — employee can collect')
+      queryClient.invalidateQueries({ queryKey: ['store-all-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['store-my-requests'] })
+    },
     onError: () => toast.error('Failed'),
   })
 
@@ -340,6 +347,7 @@ function StoreAdminView() {
     onSuccess: () => {
       toast.success('Request rejected')
       queryClient.invalidateQueries({ queryKey: ['store-all-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['store-my-requests'] })
       setRejectModal(null); setRejectNotes('')
     },
     onError: () => toast.error('Failed'),
@@ -347,7 +355,12 @@ function StoreAdminView() {
 
   const collectMutation = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/store/requests/${id}/collect`),
-    onSuccess: () => { toast.success('Marked as collected — stock deducted'); queryClient.invalidateQueries({ queryKey: ['store-all-requests'] }); queryClient.invalidateQueries({ queryKey: ['store-stats'] }) },
+    onSuccess: () => {
+      toast.success('Marked as collected — stock deducted')
+      queryClient.invalidateQueries({ queryKey: ['store-all-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['store-my-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['store-stats'] })
+    },
     onError: () => toast.error('Failed'),
   })
 
@@ -368,10 +381,10 @@ function StoreAdminView() {
   const approvedRequests = allRequests.filter((r) => r.status === 'APPROVED')
 
   const TABS = [
-    { key: 'inventory', label: isRtl ? 'المخزون' : 'Inventory' },
-    { key: 'movements', label: isRtl ? 'حركات المخزون' : 'Movements' },
-    { key: 'requests', label: isRtl ? 'طلبات الموظفين' : 'Employee Requests', badge: pendingRequests.length },
-    { key: 'employees', label: isRtl ? 'سجل الموظفين' : 'Employee History', icon: <User size={14} /> },
+    { key: 'inventory',    label: isRtl ? 'المخزون'         : 'Inventory' },
+    { key: 'movements',    label: isRtl ? 'حركات المخزون'   : 'Movements' },
+    { key: 'approval',     label: isRtl ? 'الموافقة'         : 'Approval Queue', badge: pendingRequests.length },
+    { key: 'my-requests',  label: isRtl ? 'طلباتي'           : 'My Requests', icon: <User size={14} /> },
   ]
 
   return (
@@ -592,8 +605,8 @@ function StoreAdminView() {
         </div>
       )}
 
-      {/* ── Employee Requests Tab ── */}
-      {tab === 'requests' && (
+      {/* ── Approval Queue Tab (all employees — admin workflow) ── */}
+      {tab === 'approval' && (
         <div className="space-y-6">
           {requestsLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -708,41 +721,43 @@ function StoreAdminView() {
         </div>
       )}
 
-      {/* ── Employee History Tab ── */}
-      {tab === 'employees' && (
-        <div className="space-y-4">
-          {empLoading ? (
+      {/* ── My Requests Tab (personal — current user only) ── */}
+      {tab === 'my-requests' && (
+        <div className="space-y-3 max-w-2xl">
+          {myRequestsLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-20" />
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-16" />
             ))
-          ) : (employeeSummary as any[]).length === 0 ? (
+          ) : myRequests.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <User size={48} className="mx-auto mb-3 opacity-20" />
-              <p>No employee request history yet.</p>
+              <p>{isRtl ? 'لم تقدم أي طلبات بعد' : "You haven't made any store requests yet."}</p>
             </div>
           ) : (
-            (employeeSummary as any[]).map((emp: any) => (
-              <div key={emp.userId} className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700 text-sm flex-shrink-0">
-                    {emp.name?.[0] ?? '?'}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{emp.name || 'Unknown'}</p>
-                    <p className="text-xs text-gray-400">{emp.requests.length} requests</p>
-                  </div>
+            myRequests.map((req: any) => (
+              <div key={req.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">📦</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-gray-900">{req.item?.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {req.quantity} {req.item?.unit} · {new Date(req.createdAt).toLocaleDateString()}
+                  </p>
+                  {req.reason && <p className="text-xs text-gray-400 italic mt-0.5">"{req.reason}"</p>}
+                  {req.notes && <p className="text-xs text-indigo-600 mt-0.5">{isRtl ? 'ملاحظة: ' : 'Note: '}{req.notes}</p>}
+                  {req.status === 'APPROVED' && (
+                    <p className="text-xs text-blue-600 mt-0.5 font-medium">✓ {isRtl ? 'موافق عليه — توجه للمخزن' : 'Approved — go to the store to collect'}</p>
+                  )}
+                  {req.status === 'COLLECTED' && req.collectedAt && (
+                    <p className="text-xs text-green-600 mt-0.5 font-medium">✓ {isRtl ? 'تم الاستلام' : 'Collected'} · {new Date(req.collectedAt).toLocaleDateString()}</p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  {(emp.requests as any[]).map((req: any) => (
-                    <div key={req.id} className="flex items-center gap-3 text-sm">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${REQUEST_STATUS_STYLE[req.status]}`}>
-                        {req.status}
-                      </span>
-                      <span className="text-gray-700">{req.item?.name} × {req.quantity} {req.item?.unit}</span>
-                      <span className="text-gray-400 text-xs ml-auto">{new Date(req.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  ))}
-                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${REQUEST_STATUS_STYLE[req.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {req.status === 'PENDING'   ? (isRtl ? 'بانتظار الموافقة' : 'Pending')
+                   : req.status === 'APPROVED'  ? (isRtl ? 'موافق عليه' : 'Approved')
+                   : req.status === 'REJECTED'  ? (isRtl ? 'مرفوض' : 'Rejected')
+                   : req.status === 'COLLECTED' ? (isRtl ? 'تم الاستلام' : 'Collected')
+                   : req.status}
+                </span>
               </div>
             ))
           )}
