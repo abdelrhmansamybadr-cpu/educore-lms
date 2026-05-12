@@ -1,0 +1,30 @@
+{
+  "extends": "@educore/config/tsconfig/nextjs",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@educore/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@educore/i18n": [
+        "../../packages/i18n/index.ts"
+      ],
+      "@educore/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
+    },
+    "noEmit": true,
+    "isolatedModules": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

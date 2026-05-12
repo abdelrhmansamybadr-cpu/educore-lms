@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common'
+import { CanteenService } from './canteen.service'
+import { CanteenController } from './canteen.controller'
+
+@Module({
+  controllers: [CanteenController],
+  providers: [CanteenService],
+  exports: [CanteenService],
+})
+export class CanteenModule {}

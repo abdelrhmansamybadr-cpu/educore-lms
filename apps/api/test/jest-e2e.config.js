@@ -1,0 +1,18 @@
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testEnvironment: 'node',
+  testRegex: '.e2e-spec.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/../src/$1',
+    '^@educore/types$': '<rootDir>/../../../packages/types/src/index.ts',
+  },
+  globals: {
+    'ts-jest': {
+      tsconfig: '<rootDir>/../tsconfig.json',
+    },
+  },
+}

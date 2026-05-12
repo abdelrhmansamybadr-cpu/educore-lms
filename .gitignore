@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Turbo
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Flutter
+apps/flutter/.dart_tool/
+apps/flutter/.flutter-plugins
+apps/flutter/.flutter-plugins-dependencies
+apps/flutter/build/
+apps/flutter/.packages
+apps/flutter/pubspec.lock
+
+# Prisma
+prisma/migrations/**/migration.sql
+
+# Test coverage
+coverage/
+
+# Misc
+*.tsbuildinfo

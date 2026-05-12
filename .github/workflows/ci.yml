@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ── API Unit Tests ────────────────────────────────────────────────────────────
+  api-test:
+    name: API Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run API unit tests
+        run: pnpm --filter @educore/api test
+        env:
+          DATABASE_URL: 'postgresql://test:test@localhost:5432/educore_test'
+          JWT_SECRET: 'ci_test_secret'
+          JWT_REFRESH_SECRET: 'ci_test_refresh_secret'
+
+  # ── API Build ─────────────────────────────────────────────────────────────────
+  api-build:
+    name: API Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: pnpm --filter @educore/api build
+        env:
+          DATABASE_URL: 'postgresql://test:test@localhost:5432/educore_test'
+
+  # ── Web Build ─────────────────────────────────────────────────────────────────
+  web-build:
+    name: Web Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web
+        run: pnpm --filter @educore/web build
+        env:
+          NEXT_PUBLIC_API_URL: 'http://localhost:4000/api'
+          NEXT_PUBLIC_SOCKET_URL: 'http://localhost:4000'
+
+  # ── Web E2E Tests ─────────────────────────────────────────────────────────────
+  web-e2e:
+    name: Web E2E Tests
+    runs-on: ubuntu-latest
+    needs: [web-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm --filter @educore/web test:e2e
+        env:
+          BASE_URL: 'http://localhost:4001'
+          NEXT_PUBLIC_API_URL: 'http://localhost:4000/api'
+          CI: 'true'
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+  # ── Mobile Build ──────────────────────────────────────────────────────────────
+  mobile-build:
+    name: Mobile Build (Android Debug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Flutter analyze
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build Android APK (debug)
+        working-directory: apps/mobile
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7

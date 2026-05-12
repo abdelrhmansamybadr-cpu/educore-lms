@@ -1,0 +1,53 @@
+{
+  "name": "educore-desktop",
+  "version": "1.0.0",
+  "description": "EduCore LMS Desktop Application",
+  "main": "electron.cjs",
+  "private": true,
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.educore.lms",
+    "productName": "EduCore LMS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron.cjs",
+      "preload.cjs",
+      "assets/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "educore",
+      "repo": "lms"
+    },
+    "protocols": {
+      "name": "EduCore LMS",
+      "schemes": ["educore"]
+    }
+  }
+}
