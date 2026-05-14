@@ -14,7 +14,7 @@ import {
   Bell, DollarSign, Laptop, Ticket, Video, Calendar, Library, Heart,
   Trophy, CalendarDays, Bus, Shield, ShoppingCart, Package, Briefcase,
   Building2, Warehouse, MapPin, ArrowLeftRight, Truck, ClipboardCheck, UserCheck,
-  Star, TrendingUp, Megaphone, FileText, Clock, Banknote, Briefcase as BriefcaseIcon,
+  Star, TrendingUp, Megaphone, FileText, Clock, Banknote,
   UserCog, Handshake, PieChart, Monitor, HelpCircle, AlertTriangle,
 } from 'lucide-react'
 

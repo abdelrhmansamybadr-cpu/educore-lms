@@ -6,8 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 import { apiClient } from '@/lib/api'
 import {
-  Users, Calendar, Briefcase, TrendingUp, DollarSign,
-  UserCheck, Bell, ClipboardList, BarChart2, Megaphone,
+  Users, Calendar, Briefcase, DollarSign,
+  UserCheck, ClipboardList, BarChart2, Megaphone,
 } from 'lucide-react'
 import Link from 'next/link'
 

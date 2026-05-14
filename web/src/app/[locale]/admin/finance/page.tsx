@@ -3,12 +3,12 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
-import { api, setFinanceSchoolScope } from '@/lib/api'
+import { api, getApiError, setFinanceSchoolScope } from '@/lib/api'
 import { useSchoolContext } from '@/stores/schoolContextStore'
-import { apiClient, getApiError } from '@/lib/api-client'
+import { apiClient } from '@/lib/api-client'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Badge, Skeleton } from '@/components/ui'
-import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, Banknote, BarChart2, TrendingUp, Briefcase, ChevronDown, ChevronUp, X, Calendar, Building2 } from 'lucide-react'
+import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, BarChart2, X, Calendar, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const STATUS_COLORS: Record<string, string> = {
