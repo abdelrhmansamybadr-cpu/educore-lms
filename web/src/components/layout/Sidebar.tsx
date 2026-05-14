@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
@@ -13,7 +13,9 @@ import {
   ChevronLeft, ChevronRight, GraduationCap, BarChart2, MessageSquare,
   Bell, DollarSign, Laptop, Ticket, Video, Calendar, Library, Heart,
   Trophy, CalendarDays, Bus, Shield, ShoppingCart, Package, Briefcase,
-  Building2,
+  Building2, Warehouse, MapPin, ArrowLeftRight, Truck, ClipboardCheck, UserCheck,
+  Star, TrendingUp, Megaphone, FileText, Clock, Banknote, Briefcase as BriefcaseIcon,
+  UserCog, Handshake, PieChart, Monitor, HelpCircle, AlertTriangle,
 } from 'lucide-react'
 
 interface NavItem {
@@ -51,33 +53,105 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
     const personalSection: NavSection = {
       key: 'personal', labelAr: 'الشخصية', labelEn: 'Personal',
       items: [
-        { key: 'dashboard', label: 'Dashboard',  labelAr: 'لوحة التحكم',     icon: <LayoutDashboard size={18} />, href: `${basePath}/dashboard` },
-        { key: 'my-hr',     label: 'My HR',      labelAr: 'شؤوني الوظيفية',  icon: <Users size={18} />,          href: `${basePath}/hr` },
-        { key: 'store',     label: 'Store',      labelAr: 'المخزن',           icon: <Package size={18} />,        href: `${localePrefix}/company-store`, module: 'STORE' },
-        { key: 'canteen',   label: 'Canteen',    labelAr: 'المقصف',           icon: <Brain size={18} />,          href: `${basePath}/canteen`, module: 'CANTEEN' },
-        { key: 'messaging', label: 'Messages',   labelAr: 'الرسائل',          icon: <MessageSquare size={18} />,  href: msgPath },
+        { key: 'dashboard',      label: 'Dashboard',             labelAr: 'لوحة التحكم',           icon: <LayoutDashboard size={18} />, href: `${basePath}/dashboard` },
+        { key: 'my-profile',    label: 'My Profile',           labelAr: 'ملفي الشخصي',          icon: <Users size={18} />,           href: `${basePath}/hr?tab=profile` },
+        { key: 'my-leaves',     label: 'My Leaves',            labelAr: 'إجازاتي',              icon: <Calendar size={18} />,        href: `${basePath}/hr?tab=leaves` },
+        { key: 'announcements', label: 'Announcements',        labelAr: 'الإعلانات',            icon: <Megaphone size={18} />,       href: `${basePath}/hr?tab=announcements` },
+        { key: 'my-purchases',  label: 'My Purchase Requests', labelAr: 'طلبات الشراء الخاصة بي', icon: <ShoppingCart size={18} />,  href: `${localePrefix}/my-purchases` },
+        { key: 'store',         label: 'Store',                labelAr: 'المخزن',               icon: <Package size={18} />,         href: `${localePrefix}/company-store`, module: 'STORE' },
+        { key: 'canteen-menu',  label: 'Canteen Menu',         labelAr: 'قائمة المقصف',         icon: <Brain size={18} />,           href: `${basePath}/canteen?tab=menu`, module: 'CANTEEN' },
+        { key: 'canteen-orders',label: 'My Canteen Orders',    labelAr: 'طلباتي من المقصف',     icon: <ShoppingCart size={18} />,    href: `${basePath}/canteen?tab=myorders`, module: 'CANTEEN' },
+        { key: 'messaging',     label: 'Messages',             labelAr: 'الرسائل',              icon: <MessageSquare size={18} />,   href: msgPath },
+        { key: 'it-support',    label: 'IT Support',           labelAr: 'الدعم التقني',          icon: <HelpCircle size={18} />,      href: `${localePrefix}/admin/it-support` },
       ],
     }
 
     if (userRole === 'IT_ADMIN') return [
       personalSection,
-      { key: 'work', labelAr: 'العمل', labelEn: 'My Work',
+      { key: 'it-overview', labelAr: 'نظرة عامة', labelEn: 'Overview',
         items: [
-          { key: 'devices', label: 'Devices',    labelAr: 'الأجهزة',    icon: <Laptop size={18} />,  href: `${basePath}/devices` },
-          { key: 'tickets', label: 'IT Support', labelAr: 'الدعم الفني', icon: <Ticket size={18} />,  href: `${basePath}/tickets` },
+          { key: 'it-dash',    label: 'IT Dashboard',    labelAr: 'لوحة التحكم',    icon: <Monitor size={18} />,       href: `${basePath}/it/dashboard` },
+        ] },
+      { key: 'it-support', labelAr: 'الدعم الفني', labelEn: 'IT Support',
+        items: [
+          { key: 'it-tickets', label: 'Tickets',          labelAr: 'التذاكر',        icon: <Ticket size={18} />,        href: `${basePath}/it/tickets` },
+          { key: 'devices',    label: 'Devices',          labelAr: 'الأجهزة',        icon: <Laptop size={18} />,        href: `${basePath}/devices` },
+        ] },
+      { key: 'it-assets', labelAr: 'الأصول', labelEn: 'Assets',
+        items: [
+          { key: 'assets',     label: 'Assets',           labelAr: 'إدارة الأصول',   icon: <Package size={18} />,       href: `${basePath}/it/assets` },
+        ] },
+      { key: 'it-analytics', labelAr: 'التحليلات', labelEn: 'Analytics',
+        items: [
+          { key: 'staff-analytics', label: 'Staff Analytics', labelAr: 'تحليلات الفريق', icon: <TrendingUp size={18} />, href: `${basePath}/it/staff-analytics` },
+        ] },
+    ]
+
+    if (userRole === 'IT_MANAGER') return [
+      personalSection,
+      { key: 'it-overview', labelAr: 'نظرة عامة', labelEn: 'Overview',
+        items: [
+          { key: 'it-dash',    label: 'IT Dashboard',    labelAr: 'لوحة التحكم',    icon: <Monitor size={18} />,       href: `${basePath}/it/dashboard` },
+        ] },
+      { key: 'it-support', labelAr: 'الدعم الفني', labelEn: 'IT Support',
+        items: [
+          { key: 'it-tickets', label: 'Tickets',          labelAr: 'التذاكر',        icon: <Ticket size={18} />,        href: `${basePath}/it/tickets` },
+          { key: 'devices',    label: 'Devices',          labelAr: 'الأجهزة',        icon: <Laptop size={18} />,        href: `${basePath}/devices` },
+        ] },
+      { key: 'it-assets', labelAr: 'الأصول', labelEn: 'Assets',
+        items: [
+          { key: 'assets',     label: 'Assets',           labelAr: 'إدارة الأصول',   icon: <Package size={18} />,       href: `${basePath}/it/assets` },
+        ] },
+      { key: 'it-analytics', labelAr: 'التحليلات', labelEn: 'Analytics',
+        items: [
+          { key: 'staff-analytics', label: 'Staff Analytics', labelAr: 'تحليلات الفريق', icon: <TrendingUp size={18} />, href: `${basePath}/it/staff-analytics` },
         ] },
     ]
 
     if (userRole === 'HR_MANAGER') return [
-      { key: 'main', labelAr: 'الرئيسية', labelEn: 'Main',
+      { key: 'overview', labelAr: 'نظرة عامة', labelEn: 'Overview',
         items: [
-          { key: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: <LayoutDashboard size={18} />, href: `${basePath}/dashboard` },
+          { key: 'hr-dash', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: <LayoutDashboard size={18} />, href: `${basePath}/hr` },
         ] },
-      { key: 'work', labelAr: 'الموارد البشرية', labelEn: 'HR Management',
+      { key: 'people', labelAr: 'الموظفون', labelEn: 'People',
         items: [
-          { key: 'hr',        label: 'HR',        labelAr: 'الموارد البشرية', icon: <Users size={18} />,         href: `${basePath}/hr` },
-          { key: 'users',     label: 'Staff',     labelAr: 'الموظفون',        icon: <GraduationCap size={18} />, href: `${basePath}/users` },
-          { key: 'messaging', label: 'Messages',  labelAr: 'الرسائل',         icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'employees',   label: 'Employees',   labelAr: 'الموظفون',    icon: <Users size={18} />,        href: `${basePath}/hr/employees` },
+          { key: 'departments', label: 'Departments', labelAr: 'الأقسام',     icon: <Building2 size={18} />,    href: `${basePath}/hr/departments` },
+          { key: 'shifts',      label: 'Shifts',      labelAr: 'الشيفتات',    icon: <Clock size={18} />,        href: `${basePath}/hr/shifts` },
+        ] },
+      { key: 'time', labelAr: 'الوقت والإجازات', labelEn: 'Time & Leave',
+        items: [
+          { key: 'leaves',         label: 'Leave Requests',  labelAr: 'طلبات الإجازة',    icon: <Calendar size={18} />,     href: `${basePath}/hr/leaves` },
+          { key: 'leave-analytics',label: 'Leave Analytics', labelAr: 'تحليلات الإجازات', icon: <PieChart size={18} />,     href: `${basePath}/hr/leave-analytics` },
+          { key: 'attendance',     label: 'Attendance',      labelAr: 'الحضور والغياب',   icon: <ClipboardCheck size={18} />, href: `${basePath}/hr/attendance` },
+        ] },
+      { key: 'finance', labelAr: 'المالية', labelEn: 'Finance',
+        items: [
+          { key: 'payroll', label: 'Payroll', labelAr: 'كشف الرواتب', icon: <Banknote size={18} />, href: `${basePath}/hr/payroll` },
+        ] },
+      { key: 'hiring', labelAr: 'التوظيف', labelEn: 'Hiring',
+        items: [
+          { key: 'recruitment', label: 'Recruitment',  labelAr: 'التوظيف',    icon: <Handshake size={18} />,   href: `${basePath}/hr/recruitment` },
+          { key: 'talent',      label: 'Talent Pool',  labelAr: 'بنك المواهب', icon: <Star size={18} />,        href: `${basePath}/hr/talent-pool` },
+        ] },
+      { key: 'performance', labelAr: 'الأداء', labelEn: 'Performance',
+        items: [
+          { key: 'reviews',  label: 'Performance Reviews', labelAr: 'تقييمات الأداء', icon: <TrendingUp size={18} />, href: `${basePath}/hr/reviews` },
+          { key: 'documents',label: 'Employee Documents',  labelAr: 'وثائق الموظفين', icon: <FileText size={18} />,   href: `${basePath}/hr/documents` },
+        ] },
+      { key: 'comms', labelAr: 'التواصل', labelEn: 'Communication',
+        items: [
+          { key: 'hr-announcements', label: 'Announcements',  labelAr: 'الإعلانات',    icon: <Megaphone size={18} />,    href: `${basePath}/hr/announcements` },
+          { key: 'messaging',        label: 'Messages',       labelAr: 'الرسائل',      icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'it-support',       label: 'IT Support',     labelAr: 'الدعم التقني', icon: <HelpCircle size={18} />,   href: `${localePrefix}/admin/it-support` },
+          { key: 'hr-complaints',    label: 'IT Complaints',  labelAr: 'شكاوي الدعم التقني', icon: <AlertTriangle size={18} />, href: `${basePath}/hr/complaints` },
+        ] },
+      { key: 'personal', labelAr: 'الشخصية', labelEn: 'Personal',
+        items: [
+          { key: 'my-hr',        label: 'My HR',               labelAr: 'شؤوني',                   icon: <UserCog size={18} />,     href: `${basePath}/hr` },
+          { key: 'my-purchases', label: 'Purchase Requests',   labelAr: 'طلبات الشراء',            icon: <ShoppingCart size={18} />, href: `${localePrefix}/my-purchases` },
+          { key: 'store',        label: 'Store',               labelAr: 'المخزن',                   icon: <Package size={18} />,     href: `${localePrefix}/company-store`, module: 'STORE' },
+          { key: 'settings',     label: 'Settings',            labelAr: 'الإعدادات',               icon: <Settings size={18} />,    href: `${basePath}/settings` },
         ] },
     ]
 
@@ -93,7 +167,8 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       personalSection,
       { key: 'work', labelAr: 'المكتبة', labelEn: 'Library',
         items: [
-          { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library` },
+          { key: 'lib-books', label: 'Books',    labelAr: 'الكتب',   icon: <Library size={18} />,     href: `${basePath}/library?tab=books` },
+          { key: 'lib-loans', label: 'Loans',    labelAr: 'الإعارات', icon: <BookOpen size={18} />,   href: `${basePath}/library?tab=loans` },
         ] },
     ]
 
@@ -133,15 +208,42 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       personalSection,
       { key: 'work', labelAr: 'المقصف', labelEn: 'Canteen',
         items: [
-          { key: 'canteen', label: 'Canteen', labelAr: 'المقصف', icon: <Brain size={18} />, href: `${basePath}/canteen` },
+          { key: 'canteen-menu',   label: 'Menu Management', labelAr: 'إدارة القائمة', icon: <Brain size={18} />,        href: `${basePath}/canteen?tab=menu` },
+          { key: 'canteen-orders', label: 'Orders',          labelAr: 'الطلبات',       icon: <ShoppingCart size={18} />, href: `${basePath}/canteen?tab=orders` },
         ] },
     ]
 
     if (userRole === 'STORE_MANAGER') return [
-      personalSection,
-      { key: 'work', labelAr: 'المخزن', labelEn: 'Store',
+      { key: 'overview', labelAr: 'نظرة عامة', labelEn: 'Overview',
         items: [
-          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Laptop size={18} />, href: `${basePath}/store` },
+          { key: 'store-dash', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: <LayoutDashboard size={18} />, href: `${basePath}/store` },
+        ] },
+      { key: 'operations', labelAr: 'العمليات', labelEn: 'Operations',
+        items: [
+          { key: 'purchase-reviews', label: 'Purchase Reviews',  labelAr: 'مراجعة طلبات الشراء', icon: <ClipboardCheck size={18} />, href: `${basePath}/store/purchase-reviews` },
+          { key: 'requests',         label: 'Employee Requests', labelAr: 'طلبات الموظفين',       icon: <Package size={18} />,        href: `${basePath}/store/requests` },
+          { key: 'inventory',        label: 'Inventory',          labelAr: 'المخزون',               icon: <Warehouse size={18} />,      href: `${basePath}/store/inventory` },
+          { key: 'locations',        label: 'Locations',          labelAr: 'المواقع',               icon: <MapPin size={18} />,         href: `${basePath}/store/locations` },
+          { key: 'movements',    label: 'Stock Movements', labelAr: 'حركة المخزون',    icon: <ArrowLeftRight size={18} />, href: `${basePath}/store/movements` },
+          { key: 'collections', label: 'Who Took What',  labelAr: 'من أخذ ماذا',    icon: <UserCheck size={18} />,      href: `${basePath}/store/collections` },
+        ] },
+      { key: 'procurement', labelAr: 'المشتريات', labelEn: 'Procurement',
+        items: [
+          { key: 'purchase-orders', label: 'Purchase Orders', labelAr: 'أوامر الشراء', icon: <ClipboardList size={18} />, href: `${basePath}/store/purchase-orders` },
+        ] },
+      { key: 'analytics', labelAr: 'التحليلات', labelEn: 'Analytics',
+        items: [
+          { key: 'reports', label: 'Reports', labelAr: 'التقارير', icon: <BarChart2 size={18} />, href: `${basePath}/store/reports` },
+        ] },
+      { key: 'personal', labelAr: 'الشخصية', labelEn: 'Personal',
+        items: [
+          { key: 'my-requests',  label: 'My Store Requests', labelAr: 'طلباتي من المخزن',       icon: <ShoppingCart size={18} />,  href: `${basePath}/store/my-requests` },
+          { key: 'my-hr',        label: 'My HR',              labelAr: 'شؤوني الوظيفية',         icon: <Users size={18} />,         href: `${basePath}/hr` },
+          { key: 'my-purchases', label: 'Purchase Requests',  labelAr: 'طلبات الشراء',           icon: <Briefcase size={18} />,     href: `${localePrefix}/my-purchases` },
+          { key: 'canteen',      label: 'Canteen',             labelAr: 'المقصف',                 icon: <Brain size={18} />,         href: `${basePath}/canteen`, module: 'CANTEEN' },
+          { key: 'messaging',    label: 'Messages',            labelAr: 'الرسائل',                icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'it-support',   label: 'IT Support',          labelAr: 'الدعم التقني',            icon: <HelpCircle size={18} />,    href: `${localePrefix}/admin/it-support` },
+          { key: 'settings',     label: 'Settings',            labelAr: 'الإعدادات',              icon: <Settings size={18} />,     href: `${basePath}/settings` },
         ] },
     ]
 
@@ -150,6 +252,15 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       { key: 'work', labelAr: 'الدعم الفني', labelEn: 'Support',
         items: [
           { key: 'tickets', label: 'Support Tickets', labelAr: 'تذاكر الدعم', icon: <Ticket size={18} />, href: `${basePath}/tickets` },
+        ] },
+    ]
+
+    if (userRole === 'IT_STAFF') return [
+      personalSection,
+      { key: 'work', labelAr: 'الدعم الفني', labelEn: 'IT Support',
+        items: [
+          { key: 'it-tickets', label: 'IT Tickets',   labelAr: 'تذاكر الدعم التقني', icon: <Ticket size={18} />, href: `${basePath}/it/tickets` },
+          { key: 'it-assets',  label: 'IT Assets',    labelAr: 'أصول تقنية',          icon: <Monitor size={18} />, href: `${basePath}/it/assets` },
         ] },
     ]
 
@@ -182,7 +293,102 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       personalSection,
       { key: 'work', labelAr: 'المستلزمات', labelEn: 'Requisitions',
         items: [
-          { key: 'requisitions', label: 'Requisitions', labelAr: 'طلبات التوريد', icon: <Package size={18} />, href: `${basePath}/requisitions` },
+          { key: 'requisitions', label: 'Requisitions', labelAr: 'طلبات التوريد', icon: <Package size={18} />,      href: `${basePath}/requisitions` },
+          { key: 'suppliers',    label: 'Suppliers',     labelAr: 'الموردون',      icon: <Truck size={18} />,        href: `${basePath}/store/suppliers` },
+        ] },
+    ]
+
+    // ── Finance Department Roles ───────────────────────────────────────────────
+    const fp = `${basePath}/finance` // finance base path
+    const financeFullNav: NavSection[] = [
+      { key: 'finance-overview', labelAr: 'نظرة عامة', labelEn: 'Overview',
+        items: [
+          { key: 'fin-dash',        label: 'Finance Dashboard',   labelAr: 'لوحة المالية',        icon: <LayoutDashboard size={18} />, href: fp },
+          { key: 'fin-invoices',    label: 'Invoices & Billing',  labelAr: 'الفواتير والرسوم',    icon: <FileText size={18} />,        href: `${fp}?tab=invoices` },
+          { key: 'fin-fees',        label: 'Fee Structures',      labelAr: 'هياكل الرسوم',        icon: <BookOpen size={18} />,        href: `${fp}?tab=fees` },
+          { key: 'fin-payments',    label: 'Payment History',     labelAr: 'سجل المدفوعات',      icon: <DollarSign size={18} />,      href: `${fp}?tab=payments` },
+          { key: 'fin-procurement', label: 'Procurement',         labelAr: 'المستلزمات',          icon: <Package size={18} />,         href: `${fp}?tab=procurement` },
+        ] },
+      { key: 'finance-accounting', labelAr: 'المحاسبة', labelEn: 'Accounting',
+        items: [
+          { key: 'fin-accounts',  label: 'Chart of Accounts',   labelAr: 'دليل الحسابات',       icon: <PieChart size={18} />,        href: `${fp}?tab=accounts` },
+          { key: 'fin-journal',   label: 'Journal Entries',     labelAr: 'القيود اليومية',      icon: <ClipboardList size={18} />,   href: `${fp}?tab=journal` },
+          { key: 'fin-budget',    label: 'Budgets',             labelAr: 'الميزانيات',          icon: <TrendingUp size={18} />,      href: `${fp}?tab=budget` },
+        ] },
+      { key: 'finance-payroll', labelAr: 'الرواتب', labelEn: 'Payroll',
+        items: [
+          { key: 'fin-payroll',   label: 'Payroll Runs',        labelAr: 'دورات الرواتب',       icon: <Banknote size={18} />,        href: `${fp}?tab=payroll` },
+          { key: 'fin-loans',     label: 'Staff Loans',         labelAr: 'سلف الموظفين',        icon: <Handshake size={18} />,       href: `${fp}?tab=loans` },
+        ] },
+      { key: 'finance-expenses', labelAr: 'المصروفات', labelEn: 'Expenses',
+        items: [
+          { key: 'fin-expenses',  label: 'Expense Claims',      labelAr: 'مطالبات المصروفات',   icon: <Briefcase size={18} />,       href: `${fp}?tab=expenses` },
+          { key: 'fin-bank',      label: 'Bank Accounts',       labelAr: 'الحسابات البنكية',    icon: <Building2 size={18} />,       href: `${fp}?tab=bank` },
+        ] },
+      { key: 'finance-reports', labelAr: 'التقارير', labelEn: 'Reports',
+        items: [
+          { key: 'fin-reports',   label: 'Financial Reports',   labelAr: 'التقارير المالية',    icon: <BarChart2 size={18} />,       href: `${fp}?tab=reports` },
+        ] },
+      { key: 'finance-personal', labelAr: 'الشخصية', labelEn: 'Personal',
+        items: [
+          { key: 'messaging',     label: 'Messages',            labelAr: 'الرسائل',             icon: <MessageSquare size={18} />,   href: msgPath },
+          { key: 'it-support',    label: 'IT Support',          labelAr: 'الدعم التقني',         icon: <HelpCircle size={18} />,      href: `${localePrefix}/admin/it-support` },
+        ] },
+    ]
+
+    if (userRole === 'CFO') return financeFullNav
+    if (userRole === 'FINANCE_MANAGER') return financeFullNav
+    if (userRole === 'AUDITOR') return financeFullNav
+
+    if (userRole === 'SCHOOL_ACCOUNTANT') return [
+      personalSection,
+      { key: 'accounting', labelAr: 'المحاسبة', labelEn: 'Accounting',
+        items: [
+          { key: 'fin-dash',     label: 'Finance',           labelAr: 'المالية',           icon: <DollarSign size={18} />,     href: `${basePath}/finance` },
+          { key: 'fin-accounts', label: 'Chart of Accounts', labelAr: 'دليل الحسابات',    icon: <PieChart size={18} />,       href: `${basePath}/finance?tab=accounts` },
+          { key: 'fin-journal',  label: 'Journal Entries',   labelAr: 'القيود اليومية',   icon: <ClipboardList size={18} />,  href: `${basePath}/finance?tab=journal` },
+          { key: 'fin-reports',  label: 'Reports',           labelAr: 'التقارير',         icon: <BarChart2 size={18} />,      href: `${basePath}/finance?tab=reports` },
+        ] },
+    ]
+
+    if (userRole === 'CASHIER') return [
+      personalSection,
+      { key: 'cashier', labelAr: 'الصندوق', labelEn: 'Cashier',
+        items: [
+          { key: 'cashier-desk', label: 'Cashier',    labelAr: 'الصندوق',     icon: <Banknote size={18} />,  href: `${basePath}/finance/cashier` },
+          { key: 'fin-invoices', label: 'Invoices',   labelAr: 'الفواتير',   icon: <FileText size={18} />,   href: `${basePath}/finance` },
+        ] },
+    ]
+
+    if (userRole === 'PAYROLL_OFFICER') return [
+      personalSection,
+      { key: 'payroll', labelAr: 'الرواتب', labelEn: 'Payroll',
+        items: [
+          { key: 'fin-payroll', label: 'Payroll Runs', labelAr: 'دورات الرواتب',  icon: <Banknote size={18} />,  href: `${basePath}/finance?tab=payroll` },
+          { key: 'fin-loans',   label: 'Staff Loans',  labelAr: 'سلف الموظفين',   icon: <Handshake size={18} />, href: `${basePath}/finance?tab=loans` },
+        ] },
+    ]
+
+    if (userRole === 'PROCUREMENT_OFFICER') return [
+      personalSection,
+      { key: 'procurement', labelAr: 'المشتريات', labelEn: 'Procurement',
+        items: [
+          { key: 'fin-dash',      label: 'Finance',         labelAr: 'المالية',      icon: <DollarSign size={18} />,   href: `${basePath}/finance` },
+          { key: 'store',         label: 'Store',           labelAr: 'المخزن',       icon: <Package size={18} />,      href: `${basePath}/store` },
+          { key: 'purchase',      label: 'Purchase Orders', labelAr: 'أوامر الشراء', icon: <ShoppingCart size={18} />, href: `${basePath}/store/purchase-orders` },
+          { key: 'suppliers',     label: 'Suppliers',       labelAr: 'الموردون',    icon: <Truck size={18} />,         href: `${basePath}/store/suppliers` },
+          { key: 'fin-expenses',  label: 'Expenses',        labelAr: 'المصروفات',   icon: <Briefcase size={18} />,     href: `${basePath}/finance?tab=expenses` },
+        ] },
+    ]
+
+    if (userRole === 'BRANCH_FINANCE_ADMIN') return [
+      personalSection,
+      { key: 'finance', labelAr: 'المالية', labelEn: 'Finance',
+        items: [
+          { key: 'fin-dash',     label: 'Finance',          labelAr: 'المالية',           icon: <DollarSign size={18} />,    href: `${basePath}/finance` },
+          { key: 'fin-invoices', label: 'Invoices',         labelAr: 'الفواتير',          icon: <FileText size={18} />,      href: `${basePath}/finance?tab=invoices` },
+          { key: 'fin-expenses', label: 'Expense Claims',   labelAr: 'مطالبات المصروفات', icon: <Briefcase size={18} />,     href: `${basePath}/finance?tab=expenses` },
+          { key: 'fin-reports',  label: 'Reports',          labelAr: 'التقارير',          icon: <BarChart2 size={18} />,     href: `${basePath}/finance?tab=reports` },
         ] },
     ]
   }
@@ -232,9 +438,11 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       {
         key: 'support', labelAr: 'دعم الطلاب', labelEn: 'Student Support',
         items: [
-          { key: 'student-affairs', label: 'Student Affairs', labelAr: 'شئون الطلاب', icon: <Shield size={18} />, href: basePath.replace('/counselor', '/admin') + '/student-affairs' },
-          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
-          { key: 'messaging', label: 'Messages', labelAr: 'الرسائل', icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'student-affairs', label: 'Student Affairs',       labelAr: 'شئون الطلاب',             icon: <Shield size={18} />,       href: basePath.replace('/counselor', '/admin') + '/student-affairs' },
+          { key: 'my-purchases',    label: 'My Purchase Requests',  labelAr: 'طلبات الشراء الخاصة بي',  icon: <ShoppingCart size={18} />, href: `${localePrefix}/my-purchases` },
+          { key: 'store',           label: 'Store',                 labelAr: 'المخزن',                  icon: <Package size={18} />,      href: `${localePrefix}/company-store`, module: 'STORE' },
+          { key: 'messaging',       label: 'Messages',              labelAr: 'الرسائل',                 icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'it-support',      label: 'IT Support',            labelAr: 'الدعم التقني',             icon: <HelpCircle size={18} />,   href: `${localePrefix}/admin/it-support` },
         ],
       },
     ]
@@ -281,8 +489,9 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       {
         key: 'communication', labelAr: 'التواصل', labelEn: 'Communication',
         items: [
-          { key: 'messaging', label: 'Messages', labelAr: 'الرسائل', icon: <MessageSquare size={18} />, href: msgPath },
-          { key: 'announcements', label: 'Announcements', labelAr: 'الإعلانات', icon: <Bell size={18} />, href: `${basePath}/announcements` },
+          { key: 'my-purchases',  label: 'My Purchase Requests', labelAr: 'طلبات الشراء الخاصة بي', icon: <ShoppingCart size={18} />, href: `${localePrefix}/my-purchases` },
+          { key: 'messaging',     label: 'Messages',             labelAr: 'الرسائل',                icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'announcements', label: 'Announcements',        labelAr: 'الإعلانات',              icon: <Bell size={18} />,         href: `${basePath}/announcements` },
         ],
       },
       {
@@ -323,7 +532,9 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       {
         key: 'company', labelAr: 'الشركة', labelEn: 'Company',
         items: [
-          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
+          { key: 'my-purchases', label: 'My Purchase Requests', labelAr: 'طلبات الشراء الخاصة بي', icon: <ShoppingCart size={18} />, href: `${localePrefix}/my-purchases` },
+          { key: 'store',        label: 'Store',                labelAr: 'المخزن',                  icon: <Package size={18} />,     href: `${localePrefix}/company-store`, module: 'STORE' },
+          { key: 'it-support',   label: 'IT Support',           labelAr: 'الدعم التقني',            icon: <HelpCircle size={18} />,  href: `${localePrefix}/admin/it-support` },
         ],
       },
       {
@@ -363,9 +574,9 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       {
         key: 'extras', labelAr: 'أكثر', labelEn: 'More',
         items: [
-          { key: 'library', label: 'Library', labelAr: 'المكتبة', icon: <Library size={18} />, href: `${basePath}/library` },
-          { key: 'store', label: 'Store', labelAr: 'المخزن', icon: <Package size={18} />, href: `${localePrefix}/company-store`, module: 'STORE' },
-          { key: 'gamification', label: 'Rewards', labelAr: 'المكافآت', icon: <Trophy size={18} />, href: `${basePath}/gamification` },
+          { key: 'library',      label: 'Library',    labelAr: 'المكتبة',      icon: <Library size={18} />,    href: `${basePath}/library` },
+          { key: 'gamification', label: 'Rewards',    labelAr: 'المكافآت',     icon: <Trophy size={18} />,     href: `${basePath}/gamification` },
+          { key: 'it-support',   label: 'IT Support', labelAr: 'الدعم التقني', icon: <HelpCircle size={18} />, href: `${localePrefix}/admin/it-support` },
         ],
       },
       {
@@ -402,8 +613,9 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       {
         key: 'communication', labelAr: 'التواصل', labelEn: 'Communication',
         items: [
-          { key: 'messaging', label: 'Messages', labelAr: 'الرسائل', icon: <MessageSquare size={18} />, href: msgPath },
-          { key: 'announcements', label: 'Announcements', labelAr: 'الإعلانات', icon: <Bell size={18} />, href: `${basePath}/announcements` },
+          { key: 'messaging',     label: 'Messages',      labelAr: 'الرسائل',      icon: <MessageSquare size={18} />, href: msgPath },
+          { key: 'announcements', label: 'Announcements', labelAr: 'الإعلانات',    icon: <Bell size={18} />,          href: `${basePath}/announcements` },
+          { key: 'it-support',    label: 'IT Support',    labelAr: 'الدعم التقني', icon: <HelpCircle size={18} />,    href: `${localePrefix}/admin/it-support` },
         ],
       },
     ]
@@ -429,6 +641,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps) {
   const locale = useLocale()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const user = useAuthStore((s) => s.user)
   const { selectedSchoolId, schools } = useSchoolContext()
   const isOrgContext = !selectedSchoolId && schools.length > 1
@@ -503,7 +716,12 @@ export function Sidebar({ collapsed = false, onToggle, basePath }: SidebarProps)
               </p>
             )}
             {section.items.map((item) => {
-              const isActive = pathname.startsWith(item.href)
+              const [itemPath, itemQuery] = item.href.split('?')
+              const itemTab = itemQuery ? new URLSearchParams(itemQuery).get('tab') : null
+              const currentTab = searchParams.get('tab')
+              const isActive = itemTab
+                ? pathname.startsWith(itemPath) && currentTab === itemTab
+                : pathname.startsWith(itemPath) && !currentTab
               const showOrgBadge = item.orgLevel && isOrgContext
               return (
                 <Link
