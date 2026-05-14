@@ -8,7 +8,7 @@ import { useSchoolContext } from '@/stores/schoolContextStore'
 import { apiClient, getApiError } from '@/lib/api-client'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Badge, Skeleton } from '@/components/ui'
-import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, Banknote, BarChart2, TrendingUp, Briefcase, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, Banknote, BarChart2, TrendingUp, Briefcase, ChevronDown, ChevronUp, X, Calendar, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,8 +19,8 @@ const STATUS_COLORS: Record<string, string> = {
   PARTIAL: 'primary',
 }
 
-type FinanceTab = 'invoices' | 'fees' | 'procurement' | 'accounts' | 'journal' | 'payroll' | 'loans' | 'expenses' | 'bank' | 'budget' | 'reports' | 'payments'
-const VALID_TABS: FinanceTab[] = ['invoices', 'fees', 'procurement', 'accounts', 'journal', 'payroll', 'loans', 'expenses', 'bank', 'budget', 'reports', 'payments']
+type FinanceTab = 'invoices' | 'fees' | 'procurement' | 'accounts' | 'journal' | 'payroll' | 'loans' | 'expenses' | 'bank' | 'budget' | 'reports' | 'payments' | 'fiscal-years' | 'cost-centers'
+const VALID_TABS: FinanceTab[] = ['invoices', 'fees', 'procurement', 'accounts', 'journal', 'payroll', 'loans', 'expenses', 'bank', 'budget', 'reports', 'payments', 'fiscal-years', 'cost-centers']
 
 // ── Quick Reports Component ───────────────────────────────────────────────────
 function QuickReports({ isRtl }: { isRtl: boolean }) {
@@ -32,7 +32,21 @@ function QuickReports({ isRtl }: { isRtl: boolean }) {
     { label: isRtl ? 'ميزان المراجعة' : 'Trial Balance', key: 'trial-balance' },
     { label: isRtl ? 'قائمة الدخل' : 'Income Statement', key: 'income-statement' },
     { label: isRtl ? 'تقرير التقادم' : 'Aging Report', key: 'aging' },
+    { label: isRtl ? 'الميزانية العمومية' : 'Balance Sheet', key: 'balance-sheet' },
+    { label: isRtl ? 'التدفق النقدي' : 'Cash Flow', key: 'cash-flow' },
+    { label: isRtl ? 'التوقعات المالية' : 'Financial Forecast', key: 'forecast' },
+    { label: isRtl ? 'تحليل الأقسام' : 'Department-wise', key: 'department-wise' },
   ]
+
+  const REPORT_ENDPOINTS: Record<string, string> = {
+    'trial-balance': `/finance/reports/trial-balance?year=${new Date().getFullYear()}`,
+    'income-statement': `/finance/reports/income-statement?year=${new Date().getFullYear()}`,
+    'aging': `/finance/reports/aging?year=${new Date().getFullYear()}`,
+    'balance-sheet': `/finance/reports/balance-sheet?asOfDate=${new Date().toISOString().slice(0, 10)}`,
+    'cash-flow': `/finance/reports/cash-flow?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`,
+    'forecast': `/finance/reports/forecast?months=6`,
+    'department-wise': `/finance/reports/department-wise?year=${new Date().getFullYear()}`,
+  }
 
   const runReport = async (key: string) => {
     if (activeKey === key) { setActiveKey(null); setReportData(null); return }
@@ -40,7 +54,8 @@ function QuickReports({ isRtl }: { isRtl: boolean }) {
     setActiveKey(key)
     setReportData(null)
     try {
-      const res = await api.get(`/finance/reports/${key}?year=${new Date().getFullYear()}`)
+      const endpoint = REPORT_ENDPOINTS[key] ?? `/finance/reports/${key}?year=${new Date().getFullYear()}`
+      const res = await api.get(endpoint)
       setReportData(res.data?.data ?? res.data)
     } catch {
       toast.error(isRtl ? 'فشل تحميل التقرير' : 'Failed to load report')
@@ -74,43 +89,149 @@ function QuickReports({ isRtl }: { isRtl: boolean }) {
               ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
               : !reportData
                 ? null
-                : Array.isArray(reportData)
+                : activeKey === 'balance-sheet'
                   ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-100 bg-gray-50">
-                            {Object.keys(reportData[0] || {}).map((k) => (
-                              <th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1')}</th>
+                    <div className="space-y-6">
+                      {[
+                        { label: isRtl ? 'الأصول' : 'Assets', items: reportData.assets, total: reportData.totalAssets, color: 'text-blue-700' },
+                        { label: isRtl ? 'الالتزامات' : 'Liabilities', items: reportData.liabilities, total: reportData.totalLiabilities, color: 'text-red-600' },
+                        { label: isRtl ? 'حقوق الملكية' : 'Equity', items: reportData.equity, total: reportData.totalEquity, color: 'text-purple-700' },
+                      ].map(section => (
+                        <div key={section.label}>
+                          <h4 className="font-bold text-gray-700 mb-2 border-b pb-1">{section.label}</h4>
+                          <div className="space-y-1">
+                            {(section.items ?? []).map((item: any, i: number) => (
+                              <div key={i} className="flex justify-between text-sm py-1">
+                                <span className="text-gray-600">{item.code} — {item.name}</span>
+                                <span className="font-medium">{Number(item.balance ?? 0).toLocaleString()}</span>
+                              </div>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {reportData.map((row: any, i: number) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              {Object.values(row).map((v: any, j) => (
-                                <td key={j} className="px-3 py-2 text-gray-700">
-                                  {typeof v === 'number' ? Number(v).toLocaleString() : String(v ?? '—')}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                  : (
-                    <div className="space-y-2">
-                      {Object.entries(reportData).map(([k, v]: any) => (
-                        <div key={k} className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
-                          <span className="text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1')}</span>
-                          <span className="font-semibold text-gray-900">
-                            {typeof v === 'number' ? Number(v).toLocaleString() : typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                          </span>
+                            <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
+                              <span>{isRtl ? 'الإجمالي' : 'Total'}</span>
+                              <span className={section.color}>{Number(section.total ?? 0).toLocaleString()}</span>
+                            </div>
+                          </div>
                         </div>
                       ))}
+                      <p className={`text-xs font-semibold mt-2 ${reportData.isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                        {reportData.isBalanced ? (isRtl ? 'الميزانية متوازنة ✓' : 'Balance sheet is balanced ✓') : (isRtl ? 'تحذير: الميزانية غير متوازنة' : 'Warning: Balance sheet does not balance')}
+                      </p>
                     </div>
                   )
+                  : activeKey === 'cash-flow'
+                    ? (
+                      <div className="space-y-4">
+                        {[
+                          { label: isRtl ? 'الأنشطة التشغيلية' : 'Operating Activities', items: reportData.operatingActivities, net: reportData.netOperating },
+                          { label: isRtl ? 'أنشطة التمويل' : 'Financing Activities', items: reportData.financingActivities, net: reportData.netFinancing },
+                        ].map(section => (
+                          <div key={section.label}>
+                            <h4 className="font-semibold text-gray-700 mb-1">{section.label}</h4>
+                            {(section.items ?? []).map((item: any, i: number) => (
+                              <div key={i} className="flex justify-between text-sm py-0.5">
+                                <span className="text-gray-500">{item.description || item.label}</span>
+                                <span className={`font-medium ${Number(item.amount) >= 0 ? 'text-green-700' : 'text-red-600'}`}>{Number(item.amount ?? 0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between text-sm font-bold border-t mt-1 pt-1">
+                              <span>{isRtl ? 'صافي' : 'Net'}</span>
+                              <span className={Number(section.net) >= 0 ? 'text-green-700' : 'text-red-600'}>{Number(section.net ?? 0).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-sm font-bold border-t-2 pt-2">
+                          <span>{isRtl ? 'صافي التغيير النقدي' : 'Net Cash Change'}</span>
+                          <span className={Number(reportData.netCashChange) >= 0 ? 'text-green-700 font-bold' : 'text-red-600 font-bold'}>{Number(reportData.netCashChange ?? 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )
+                    : activeKey === 'forecast'
+                      ? (
+                        <div className="overflow-x-auto">
+                          <div className="flex justify-between text-sm text-gray-600 mb-3">
+                            <span>{isRtl ? 'متوسط الإيراد الشهري' : 'Avg Monthly Revenue'}</span>
+                            <span className="font-bold">{Number(reportData.avgMonthlyRevenue ?? 0).toLocaleString()}</span>
+                          </div>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b bg-gray-50">
+                                <th className="px-3 py-2 text-start font-semibold text-gray-600">{isRtl ? 'الشهر' : 'Month'}</th>
+                                <th className="px-3 py-2 text-end font-semibold text-gray-600">{isRtl ? 'الإيراد المتوقع' : 'Projected Revenue'}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {(reportData.forecast ?? []).map((row: any, i: number) => (
+                                <tr key={i} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 text-gray-700">{row.label || `${row.month}/${row.year}`}</td>
+                                  <td className="px-3 py-2 text-end font-medium text-gray-900">{Number(row.projectedRevenue ?? 0).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                      : activeKey === 'department-wise'
+                        ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b bg-gray-50">
+                                  <th className="px-3 py-2 text-start font-semibold text-gray-600">{isRtl ? 'مركز التكلفة' : 'Cost Center'}</th>
+                                  <th className="px-3 py-2 text-start font-semibold text-gray-600">{isRtl ? 'الاسم' : 'Name'}</th>
+                                  <th className="px-3 py-2 text-end font-semibold text-gray-600">{isRtl ? 'إجمالي المصروفات' : 'Total Expenses'}</th>
+                                  <th className="px-3 py-2 text-end font-semibold text-gray-600">{isRtl ? 'العدد' : 'Count'}</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {(Array.isArray(reportData) ? reportData : []).map((row: any, i: number) => (
+                                  <tr key={i} className="hover:bg-gray-50">
+                                    <td className="px-3 py-2 font-mono text-xs text-gray-500">{row.costCenter}</td>
+                                    <td className="px-3 py-2 text-gray-800">{isRtl ? (row.nameAr || row.name) : row.name}</td>
+                                    <td className="px-3 py-2 text-end font-semibold text-gray-900">{Number(row.totalExpenses ?? 0).toLocaleString()}</td>
+                                    <td className="px-3 py-2 text-end text-gray-600">{row.claimCount ?? 0}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                        : Array.isArray(reportData)
+                          ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-gray-100 bg-gray-50">
+                                    {Object.keys(reportData[0] || {}).map((k) => (
+                                      <th key={k} className="px-3 py-2 text-left font-semibold text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1')}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                  {reportData.map((row: any, i: number) => (
+                                    <tr key={i} className="hover:bg-gray-50">
+                                      {Object.values(row).map((v: any, j) => (
+                                        <td key={j} className="px-3 py-2 text-gray-700">
+                                          {typeof v === 'number' ? Number(v).toLocaleString() : String(v ?? '—')}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )
+                          : (
+                            <div className="space-y-2">
+                              {Object.entries(reportData).map(([k, v]: any) => (
+                                <div key={k} className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
+                                  <span className="text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1')}</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {typeof v === 'number' ? Number(v).toLocaleString() : typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )
             }
           </CardBody>
         </Card>
@@ -310,6 +431,29 @@ function AdminFinancePageInner() {
     enabled: tab === 'reports' && !!selectedSchoolId,
   })
 
+  // ── Fiscal Years ──────────────────────────────────────────────────────────────
+  const { data: fiscalYears, isLoading: fyLoading } = useQuery({
+    queryKey: ['fiscal-years'],
+    queryFn: () => api.get('/finance/fiscal-years').then(r => r.data?.data ?? r.data ?? []),
+    enabled: tab === 'fiscal-years',
+  })
+
+  // ── Cost Centers ──────────────────────────────────────────────────────────────
+  const { data: costCenters, isLoading: ccLoading } = useQuery({
+    queryKey: ['cost-centers'],
+    queryFn: () => api.get('/finance/cost-centers').then(r => r.data?.data ?? r.data ?? []),
+    enabled: tab === 'cost-centers',
+  })
+
+  // ── General Ledger (triggered by glAccountId) ─────────────────────────────────
+  const [glAccountId, setGlAccountId] = useState<string | null>(null)
+
+  const { data: generalLedger, isLoading: glLoading } = useQuery({
+    queryKey: ['general-ledger', glAccountId],
+    queryFn: () => api.get(`/finance/reports/general-ledger/${glAccountId}`).then(r => r.data?.data ?? r.data),
+    enabled: !!glAccountId && tab === 'accounts',
+  })
+
   // ── Payment History ───────────────────────────────────────────────────────────
   const [payHistoryFilter, setPayHistoryFilter] = useState({ gateway: '', status: '', from: '', to: '' })
   const [payPage, setPayPage] = useState(1)
@@ -338,6 +482,32 @@ function AdminFinancePageInner() {
     onSuccess: () => { toast.success(isRtl ? 'تم عكس الدفعة' : 'Payment reversed'); refetchPayHistory() },
     onError: (e: any) => toast.error(getApiError(e)),
   })
+
+  // ── Fiscal Year & Cost Center Mutations ───────────────────────────────────────
+  const createFiscalYearMutation = useMutation({
+    mutationFn: (body: any) => api.post('/finance/fiscal-years', body).then(r => r.data?.data ?? r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['fiscal-years'] }); toast.success(isRtl ? 'تم إنشاء السنة المالية' : 'Fiscal year created') },
+    onError: (e: any) => toast.error(getApiError(e, isRtl ? 'فشل الإنشاء' : 'Failed to create')),
+  })
+
+  const closeFiscalYearMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/finance/fiscal-years/${id}/close`).then(r => r.data?.data ?? r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['fiscal-years'] }); toast.success(isRtl ? 'تم إغلاق السنة المالية' : 'Fiscal year closed') },
+    onError: (e: any) => toast.error(getApiError(e, isRtl ? 'فشل الإغلاق' : 'Failed to close')),
+  })
+
+  const createCostCenterMutation = useMutation({
+    mutationFn: (body: any) => api.post('/finance/cost-centers', body).then(r => r.data?.data ?? r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cost-centers'] }); toast.success(isRtl ? 'تم إنشاء مركز التكلفة' : 'Cost center created') },
+    onError: (e: any) => toast.error(getApiError(e, isRtl ? 'فشل الإنشاء' : 'Failed to create')),
+  })
+
+  // ── Fiscal Year & Cost Center State ──────────────────────────────────────────
+  const [showFiscalYearModal, setShowFiscalYearModal] = useState(false)
+  const [fyForm, setFyForm] = useState({ name: '', startDate: '', endDate: '' })
+  const [showCostCenterModal, setShowCostCenterModal] = useState(false)
+  const [ccForm, setCcForm] = useState({ code: '', name: '', nameAr: '', description: '' })
+  const [selectedFyId, setSelectedFyId] = useState<string>('')
 
   const [showAdvanceModal, setShowAdvanceModal] = useState(false)
   const [advForm, setAdvForm] = useState({ studentId: '', amount: '', currency: 'SAR', gateway: 'CASH', notes: '' })
@@ -818,18 +988,20 @@ function AdminFinancePageInner() {
 
   // Tab-contextual title
   const tabTitles: Record<FinanceTab, { en: string; ar: string }> = {
-    invoices:    { en: 'Invoices & Billing',   ar: 'الفواتير والرسوم' },
-    fees:        { en: 'Fee Structures',       ar: 'هياكل الرسوم' },
-    procurement: { en: 'Procurement',          ar: 'المستلزمات' },
-    accounts:    { en: 'Chart of Accounts',    ar: 'دليل الحسابات' },
-    journal:     { en: 'Journal Entries',      ar: 'القيود اليومية' },
-    payroll:     { en: 'Payroll Runs',         ar: 'دورات الرواتب' },
-    loans:       { en: 'Staff Loans',          ar: 'سلف الموظفين' },
-    expenses:    { en: 'Expense Claims',       ar: 'مطالبات المصروفات' },
-    bank:        { en: 'Bank Accounts',        ar: 'الحسابات البنكية' },
-    budget:      { en: 'Budgets',              ar: 'الميزانيات' },
-    reports:     { en: 'Financial Reports',    ar: 'التقارير المالية' },
-    payments:    { en: 'Payment History',      ar: 'سجل المدفوعات' },
+    invoices:      { en: 'Invoices & Billing',   ar: 'الفواتير والرسوم' },
+    fees:          { en: 'Fee Structures',       ar: 'هياكل الرسوم' },
+    procurement:   { en: 'Procurement',          ar: 'المستلزمات' },
+    accounts:      { en: 'Chart of Accounts',    ar: 'دليل الحسابات' },
+    journal:       { en: 'Journal Entries',      ar: 'القيود اليومية' },
+    payroll:       { en: 'Payroll Runs',         ar: 'دورات الرواتب' },
+    loans:         { en: 'Staff Loans',          ar: 'سلف الموظفين' },
+    expenses:      { en: 'Expense Claims',       ar: 'مطالبات المصروفات' },
+    bank:          { en: 'Bank Accounts',        ar: 'الحسابات البنكية' },
+    budget:        { en: 'Budgets',              ar: 'الميزانيات' },
+    reports:       { en: 'Financial Reports',    ar: 'التقارير المالية' },
+    payments:      { en: 'Payment History',      ar: 'سجل المدفوعات' },
+    'fiscal-years':  { en: 'Fiscal Years',       ar: 'السنوات المالية' },
+    'cost-centers':  { en: 'Cost Centers',       ar: 'مراكز التكلفة' },
   }
 
   // Modal, InputField, SelectField defined outside this component (above AdminFinancePageInner) to prevent focus-loss on re-render
@@ -1817,21 +1989,83 @@ function AdminFinancePageInner() {
               ? <p className="text-sm text-gray-400 text-center py-8">{isRtl ? 'لا توجد حسابات. انقر على "إنشاء حسابات افتراضية" للبدء.' : 'No accounts. Click "Seed Defaults" to get started.'}</p>
               : <div className="space-y-1">
                   {accounts.map((acc: any) => (
-                    <div key={acc.id} className={`flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-gray-50 ${acc.parentId ? 'ml-4 pl-6 border-l-2 border-gray-100' : 'font-semibold'}`}>
+                    <div key={acc.id} onClick={() => setGlAccountId(acc.id)}
+                      className={`flex items-center justify-between py-1.5 px-3 rounded-lg cursor-pointer hover:bg-gray-50 ${glAccountId === acc.id ? 'bg-primary-50 border border-primary-100' : ''} ${acc.parentId ? 'ml-4 pl-6 border-l-2 border-gray-100' : 'font-semibold'}`}>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono text-gray-400 w-14">{acc.code}</span>
                         <span className="text-sm text-gray-800">{acc.name}</span>
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        acc.type === 'ASSET' ? 'bg-blue-50 text-blue-600' :
-                        acc.type === 'LIABILITY' ? 'bg-red-50 text-red-600' :
-                        acc.type === 'EQUITY' ? 'bg-purple-50 text-purple-600' :
-                        acc.type === 'REVENUE' ? 'bg-green-50 text-green-600' :
-                        'bg-orange-50 text-orange-600'}`}>{acc.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          acc.type === 'ASSET' ? 'bg-blue-50 text-blue-600' :
+                          acc.type === 'LIABILITY' ? 'bg-red-50 text-red-600' :
+                          acc.type === 'EQUITY' ? 'bg-purple-50 text-purple-600' :
+                          acc.type === 'REVENUE' ? 'bg-green-50 text-green-600' :
+                          'bg-orange-50 text-orange-600'}`}>{acc.type}</span>
+                        <span className="text-xs text-primary-500 opacity-0 group-hover:opacity-100">{isRtl ? 'دفتر الأستاذ' : 'Ledger'}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
             }
+
+            {/* General Ledger Drill-down */}
+            {glAccountId && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <BookOpen size={16} className="text-primary-600" />
+                    {isRtl ? 'دفتر الأستاذ العام' : 'General Ledger'}
+                    {generalLedger?.account && (
+                      <span className="text-sm font-normal text-gray-500">— {generalLedger.account.code} {generalLedger.account.name}</span>
+                    )}
+                  </h3>
+                  <button onClick={() => setGlAccountId(null)} className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+                    <X size={12} /> {isRtl ? 'إغلاق' : 'Close'}
+                  </button>
+                </div>
+                {glLoading ? (
+                  <div className="space-y-1">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-gray-100">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {[isRtl ? 'التاريخ' : 'Date', isRtl ? 'رقم القيد' : 'Entry #', isRtl ? 'البيان' : 'Description', isRtl ? 'مدين' : 'Debit', isRtl ? 'دائن' : 'Credit', isRtl ? 'الرصيد' : 'Balance'].map(h => (
+                            <th key={h} className="text-start font-semibold text-gray-500 px-3 py-2">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {(generalLedger?.lines ?? []).map((line: any, i: number) => (
+                          <tr key={i} className="hover:bg-gray-50/50">
+                            <td className="px-3 py-2 text-gray-600">{new Date(line.date).toLocaleDateString()}</td>
+                            <td className="px-3 py-2 font-mono text-gray-600">{line.entryNumber}</td>
+                            <td className="px-3 py-2 text-gray-800">{line.description}</td>
+                            <td className="px-3 py-2 text-right text-blue-700 font-medium">{line.debit > 0 ? line.debit.toLocaleString() : '—'}</td>
+                            <td className="px-3 py-2 text-right text-red-600 font-medium">{line.credit > 0 ? line.credit.toLocaleString() : '—'}</td>
+                            <td className={`px-3 py-2 text-right font-bold ${line.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>{line.balance.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        {(generalLedger?.lines ?? []).length === 0 && (
+                          <tr><td colSpan={6} className="text-center py-8 text-gray-400">{isRtl ? 'لا توجد حركات' : 'No transactions'}</td></tr>
+                        )}
+                      </tbody>
+                      {generalLedger?.lines?.length > 0 && (
+                        <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                          <tr>
+                            <td colSpan={3} className="px-3 py-2 font-bold text-gray-700">{isRtl ? 'الإجمالي' : 'Total'}</td>
+                            <td className="px-3 py-2 text-right font-bold text-blue-700">{generalLedger.totalDebit?.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right font-bold text-red-600">{generalLedger.totalCredit?.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right font-bold text-gray-900">{generalLedger.closingBalance?.toLocaleString()}</td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </CardBody>
         </Card>
       )}
@@ -2637,6 +2871,218 @@ function AdminFinancePageInner() {
                 ))}
               </ProcurementSection>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ── Fiscal Years Tab ──────────────────────────────────────────────────── */}
+      {tab === 'fiscal-years' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">{isRtl ? 'السنوات المالية' : 'Fiscal Years'}</h2>
+            <button onClick={() => setShowFiscalYearModal(true)}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary-900 text-white rounded-xl hover:bg-primary-800">
+              <Plus size={14} /> {isRtl ? 'سنة مالية جديدة' : 'New Fiscal Year'}
+            </button>
+          </div>
+
+          {fyLoading ? (
+            <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+          ) : (fiscalYears ?? []).length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Calendar size={40} className="mx-auto mb-3 opacity-20" />
+              <p>{isRtl ? 'لا توجد سنوات مالية' : 'No fiscal years yet'}</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(fiscalYears ?? []).map((fy: any) => (
+                <Card key={fy.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-gray-900">{fy.name}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {new Date(fy.startDate).toLocaleDateString()} – {new Date(fy.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${fy.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {fy.status === 'OPEN' ? (isRtl ? 'مفتوحة' : 'Open') : (isRtl ? 'مغلقة' : 'Closed')}
+                        </span>
+                        {fy.status === 'OPEN' && (
+                          <button onClick={() => closeFiscalYearMutation.mutate(fy.id)}
+                            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700">
+                            {isRtl ? 'إغلاق السنة' : 'Close Year'}
+                          </button>
+                        )}
+                        <button onClick={() => setSelectedFyId(selectedFyId === fy.id ? '' : fy.id)}
+                          className="text-xs px-3 py-1.5 border border-primary-200 rounded-lg hover:bg-primary-50 text-primary-700">
+                          {selectedFyId === fy.id ? (isRtl ? 'إخفاء الفترات' : 'Hide Periods') : (isRtl ? 'الفترات المحاسبية' : 'Periods')}
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {selectedFyId === fy.id && (
+                    <CardBody className="pt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {(fy.periods ?? []).map((p: any) => (
+                          <div key={p.id} className={`rounded-xl p-3 text-xs ${p.status === 'OPEN' ? 'bg-green-50 border border-green-100' : 'bg-gray-50 border border-gray-100'}`}>
+                            <p className="font-semibold text-gray-800">{p.name}</p>
+                            <p className={`mt-1 font-medium ${p.status === 'OPEN' ? 'text-green-600' : 'text-gray-500'}`}>
+                              {p.status === 'OPEN' ? (isRtl ? 'مفتوحة' : 'Open') : (isRtl ? 'مغلقة' : 'Closed')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardBody>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* New Fiscal Year Modal */}
+          {showFiscalYearModal && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-md">
+                <CardHeader><h3 className="font-bold text-gray-900">{isRtl ? 'سنة مالية جديدة' : 'New Fiscal Year'}</h3></CardHeader>
+                <CardBody className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'الاسم' : 'Name'}</label>
+                    <input value={fyForm.name} onChange={e => setFyForm(p => ({ ...p, name: e.target.value }))}
+                      placeholder="FY 2025-2026"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'تاريخ البداية' : 'Start Date'}</label>
+                      <input type="date" value={fyForm.startDate} onChange={e => setFyForm(p => ({ ...p, startDate: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'تاريخ النهاية' : 'End Date'}</label>
+                      <input type="date" value={fyForm.endDate} onChange={e => setFyForm(p => ({ ...p, endDate: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={() => { createFiscalYearMutation.mutate(fyForm); setShowFiscalYearModal(false) }}
+                      disabled={!fyForm.name || !fyForm.startDate || !fyForm.endDate}
+                      className="flex-1 bg-primary-900 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-primary-800 disabled:opacity-50">
+                      {isRtl ? 'إنشاء' : 'Create'}
+                    </button>
+                    <button onClick={() => setShowFiscalYearModal(false)}
+                      className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                      {isRtl ? 'إلغاء' : 'Cancel'}
+                    </button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Cost Centers Tab ──────────────────────────────────────────────────── */}
+      {tab === 'cost-centers' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{isRtl ? 'مراكز التكلفة' : 'Cost Centers'}</h2>
+              <p className="text-sm text-gray-500">{isRtl ? 'تنظيم المصروفات حسب القسم أو المشروع' : 'Organize expenses by department or project'}</p>
+            </div>
+            <button onClick={() => setShowCostCenterModal(true)}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 bg-primary-900 text-white rounded-xl hover:bg-primary-800">
+              <Plus size={14} /> {isRtl ? 'مركز جديد' : 'New Cost Center'}
+            </button>
+          </div>
+
+          {ccLoading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+          ) : (costCenters ?? []).length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Building2 size={40} className="mx-auto mb-3 opacity-20" />
+              <p>{isRtl ? 'لا توجد مراكز تكلفة' : 'No cost centers yet'}</p>
+            </div>
+          ) : (
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-start text-xs font-semibold text-gray-500 px-4 py-3">{isRtl ? 'الكود' : 'Code'}</th>
+                      <th className="text-start text-xs font-semibold text-gray-500 px-4 py-3">{isRtl ? 'الاسم' : 'Name'}</th>
+                      <th className="text-start text-xs font-semibold text-gray-500 px-4 py-3">{isRtl ? 'الوصف' : 'Description'}</th>
+                      <th className="text-start text-xs font-semibold text-gray-500 px-4 py-3">{isRtl ? 'الحالة' : 'Status'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {(costCenters ?? []).map((cc: any) => (
+                      <tr key={cc.id} className="hover:bg-gray-50/50">
+                        <td className="px-4 py-3 font-mono text-xs text-gray-600">{cc.code}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-gray-900">{isRtl ? (cc.nameAr || cc.name) : cc.name}</p>
+                          {cc.nameAr && !isRtl && <p className="text-xs text-gray-400">{cc.nameAr}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">{cc.description || '—'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cc.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {cc.isActive ? (isRtl ? 'نشط' : 'Active') : (isRtl ? 'غير نشط' : 'Inactive')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {/* New Cost Center Modal */}
+          {showCostCenterModal && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-md">
+                <CardHeader><h3 className="font-bold text-gray-900">{isRtl ? 'مركز تكلفة جديد' : 'New Cost Center'}</h3></CardHeader>
+                <CardBody className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'الكود' : 'Code'} *</label>
+                      <input value={ccForm.code} onChange={e => setCcForm(p => ({ ...p, code: e.target.value }))}
+                        placeholder="CC-001"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'الاسم' : 'Name'} *</label>
+                      <input value={ccForm.name} onChange={e => setCcForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="Administration"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'الاسم بالعربية' : 'Arabic Name'}</label>
+                    <input value={ccForm.nameAr} onChange={e => setCcForm(p => ({ ...p, nameAr: e.target.value }))}
+                      placeholder="الإدارة" dir="rtl"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{isRtl ? 'الوصف' : 'Description'}</label>
+                    <textarea value={ccForm.description} onChange={e => setCcForm(p => ({ ...p, description: e.target.value }))}
+                      rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => { createCostCenterMutation.mutate(ccForm); setShowCostCenterModal(false); setCcForm({ code: '', name: '', nameAr: '', description: '' }) }}
+                      disabled={!ccForm.code || !ccForm.name}
+                      className="flex-1 bg-primary-900 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-primary-800 disabled:opacity-50">
+                      {isRtl ? 'إنشاء' : 'Create'}
+                    </button>
+                    <button onClick={() => setShowCostCenterModal(false)}
+                      className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                      {isRtl ? 'إلغاء' : 'Cancel'}
+                    </button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
           )}
         </div>
       )}

@@ -30,6 +30,8 @@ enum Role {
   STORE_MANAGER
   CANTEEN_MANAGER
   IT_ADMIN
+  IT_MANAGER
+  IT_STAFF
   TRANSPORT_MANAGER
   RECEPTIONIST
   ADMISSION_OFFICER
@@ -38,6 +40,14 @@ enum Role {
   SUPPORT_AGENT
   ACTIVITIES_COORDINATOR
   REQUISITIONS_MANAGER
+  CFO
+  FINANCE_MANAGER
+  SCHOOL_ACCOUNTANT
+  CASHIER
+  PAYROLL_OFFICER
+  PROCUREMENT_OFFICER
+  AUDITOR
+  BRANCH_FINANCE_ADMIN
 }
 
 enum CurriculumType {
@@ -128,6 +138,11 @@ enum PaymentGateway {
   MOYASAR
   CASH
   BANK_TRANSFER
+  CARD
+  CHEQUE
+  APPLE_PAY
+  GOOGLE_PAY
+  POS_TERMINAL
 }
 
 enum FeeType {
@@ -167,6 +182,7 @@ enum TicketStatus {
   WAITING_USER
   RESOLVED
   CLOSED
+  ESCALATED
 }
 
 enum TicketPriority {
@@ -174,6 +190,7 @@ enum TicketPriority {
   MEDIUM
   HIGH
   URGENT
+  CRITICAL
 }
 
 enum TicketCategory {
@@ -184,6 +201,10 @@ enum TicketCategory {
   ADMISSION
   GENERAL
   BEHAVIOR
+  HARDWARE
+  NETWORK
+  SOFTWARE
+  PORTAL
 }
 
 enum AttendanceStatus {
@@ -230,6 +251,20 @@ model Organization {
   purchaseRequests PurchaseRequest[] @relation("OrgPurchaseRequests")
   requisitions     Requisition[]     @relation("OrgRequisitions")
   jobApplications  JobApplication[]  @relation("OrgJobApplications")
+  storeItems       StoreItem[]       @relation("OrgStoreItems")
+  storeRequests    StoreItemRequest[] @relation("OrgStoreItemRequests")
+  stockMovements   StockMovement[]   @relation("OrgStockMovements")
+  storeLocations   StoreLocation[]   @relation("OrgStoreLocations")
+  suppliers        Supplier[]        @relation("OrgSuppliers")
+  purchaseOrders   PurchaseOrder[]   @relation("OrgPurchaseOrders")
+  // Finance relations
+  chartOfAccounts  ChartOfAccount[]  @relation("OrgChartOfAccounts")
+  journalEntries   JournalEntry[]    @relation("OrgJournalEntries")
+  budgets          Budget[]          @relation("OrgBudgets")
+  bankAccounts     BankAccount[]     @relation("OrgBankAccounts")
+  fiscalYears      FiscalYear[]      @relation("OrgFiscalYears")
+  openingBalances  OpeningBalance[]  @relation("OrgOpeningBalances")
+  costCenters      CostCenter[]      @relation("OrgCostCenters")
 }
 
 model OrgMember {
@@ -326,8 +361,6 @@ model School {
   badges         Badge[]
   staffProfiles  StaffProfile[] @relation("StaffProfiles")
   canteenItems   CanteenItem[]  @relation("CanteenItems")
-  storeItems          StoreItem[]         @relation("StoreItems")
-  storeItemRequests   StoreItemRequest[]  @relation("SchoolStoreItemRequests")
   boardingRooms  BoardingRoom[] @relation("BoardingRooms")
   visitorLogs    VisitorLog[]   @relation("VisitorLogs")
   disciplinaryRecords DisciplinaryRecord[] @relation("DisciplinaryRecords")
@@ -337,6 +370,21 @@ model School {
   purchaseRequests    PurchaseRequest[]    @relation("SchoolPurchaseRequests")
   requisitions        Requisition[]        @relation("SchoolRequisitions")
   jobApplications     JobApplication[]     @relation("SchoolJobApplications")
+
+  // HR module extensions
+  hrDepartments       HrDepartment[]       @relation("HrDepartments")
+  hrPayrolls          HrPayroll[]          @relation("HrPayrolls")
+  hrShifts            HrShift[]            @relation("HrShifts")
+  hrJobPostings       HrJobPosting[]       @relation("HrJobPostings")
+  hrJobApplications   HrJobApplication[]   @relation("HrJobApplications")
+  talentCandidates    TalentCandidate[]    @relation("TalentCandidates")
+  hrAttendances       HrAttendance[]       @relation("HrAttendances")
+  hrAnnouncements     HrAnnouncement[]     @relation("HrAnnouncements")
+  hrDocumentTypes     HrDocumentType[]     @relation("HrDocumentTypes")
+  leavePolicies       HrLeavePolicy[]      @relation("SchoolLeavePolicy")
+  itAssets            ItAsset[]            @relation("SchoolItAssets")
+  itComplaints        ItComplaint[]        @relation("SchoolItComplaints")
+  advancePayments     AdvancePayment[]
 }
 
 model SchoolSettings {
@@ -451,9 +499,16 @@ model User {
   reviewedPurchases     PurchaseRequest[]      @relation("ReviewedPurchases")
   requestedRequisitions Requisition[]          @relation("RequestedRequisitions")
   reviewedRequisitions  Requisition[]          @relation("ReviewedRequisitions")
+  smReviewedRequisitions Requisition[]         @relation("SMReviewedRequisitions")
   reviewedJobApps       JobApplication[]       @relation("ReviewedJobApplications")
   storeItemRequests     StoreItemRequest[]     @relation("UserStoreItemRequests")
   storeItemApprovals    StoreItemRequest[]     @relation("UserStoreItemApprovals")
+  stockMovements        StockMovement[]        @relation("UserStockMovements")
+  purchaseOrdersCreated PurchaseOrder[]        @relation("POCreatedBy")
+  hrAnnouncements       HrAnnouncement[]       @relation("HrAnnouncementAuthor")
+  complaintsSubmitted   ItComplaint[]          @relation("ComplaintSubmitter")
+  complaintsAgainst     ItComplaint[]          @relation("ComplaintAgainst")
+  complaintMessages     ItComplaintMessage[]   @relation("ComplaintMessageAuthor")
 
   @@unique([email, schoolId])
   @@index([schoolId, role])
@@ -939,6 +994,7 @@ model Invoice {
   dueDate        DateTime
   paidAt         DateTime?
   payments       Payment[]
+  paymentPlan    PaymentPlan?
   createdAt      DateTime      @default(now())
 }
 
@@ -961,10 +1017,32 @@ model Payment {
   currency              Currency
   gateway               PaymentGateway
   gatewayTransactionId  String?
-  status                String         @default("PENDING")
+  chequeNumber          String?
+  chequeBank            String?
+  notes                 String?
+  status                String         @default("SUCCESS")
   receiptUrl            String?
+  receiptNumber         String?
   paidAt                DateTime?
+  reversedAt            DateTime?
+  reversedById          String?
   createdAt             DateTime       @default(now())
+}
+
+model AdvancePayment {
+  id          String         @id @default(cuid())
+  schoolId    String
+  studentId   String
+  orgId       String?
+  amount      Float
+  currency    Currency       @default(SAR)
+  gateway     PaymentGateway @default(CASH)
+  reference   String?
+  notes       String?
+  balance     Float
+  createdById String?
+  createdAt   DateTime       @default(now())
+  school      School         @relation(fields: [schoolId], references: [id])
 }
 
 model Scholarship {
@@ -1029,22 +1107,30 @@ model DeviceCheckout {
 // ─── SUPPORT TICKETS ─────────────────────────
 
 model Ticket {
-  id          String         @id @default(cuid())
-  schoolId    String
-  school      School         @relation(fields: [schoolId], references: [id])
-  submitterId String
-  assigneeId  String?
-  title       String
-  description String
-  category    TicketCategory
-  priority    TicketPriority @default(MEDIUM)
-  status      TicketStatus   @default(OPEN)
-  slaDeadline DateTime?
-  slaBreached Boolean        @default(false)
-  replies     TicketReply[]
-  messages    TicketMessage[]
-  createdAt   DateTime       @default(now())
-  resolvedAt  DateTime?
+  id                String         @id @default(cuid())
+  ticketNumber      String?        // e.g. TKT-0042
+  schoolId          String
+  school            School         @relation(fields: [schoolId], references: [id])
+  submitterId       String
+  assigneeId        String?
+  title             String
+  description       String
+  location          String?        // room/area in school
+  category          TicketCategory
+  priority          TicketPriority @default(MEDIUM)
+  status            TicketStatus   @default(OPEN)
+  slaDeadline       DateTime?
+  slaBreached       Boolean        @default(false)
+  escalatedToId     String?
+  escalationReason  String?
+  rating            Int?           // 1-5 stars after resolution
+  ratingFeedback    String?
+  replies           TicketReply[]
+  messages          TicketMessage[]
+  itComplaints      ItComplaint[]
+  createdAt         DateTime       @default(now())
+  resolvedAt        DateTime?
+  updatedAt         DateTime       @updatedAt
 }
 
 model TicketReply {
@@ -1066,6 +1152,61 @@ model TicketMessage {
   content       String
   attachmentUrl String?
   createdAt     DateTime @default(now())
+}
+
+// ─── IT ASSET MANAGEMENT ─────────────────────
+
+model ItAsset {
+  id              String    @id @default(cuid())
+  schoolId        String
+  school          School    @relation("SchoolItAssets", fields: [schoolId], references: [id])
+  name            String
+  type            String    @default("other") // computer|tablet|projector|printer|network_switch|server|router|ups|other
+  serialNumber    String    @unique
+  room            String?
+  purchaseDate    DateTime?
+  warrantyExpiry  DateTime?
+  status          String    @default("active")    // active|maintenance|retired|lost
+  condition       String    @default("good")      // excellent|good|fair|poor
+  assignedToId    String?                         // IT staff userId
+  notes           String?
+  maintenanceLogs ItMaintenance[] @relation("AssetMaintenance")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([schoolId])
+  @@index([serialNumber])
+}
+
+model ItMaintenance {
+  id            String   @id @default(cuid())
+  assetId       String
+  asset         ItAsset  @relation("AssetMaintenance", fields: [assetId], references: [id], onDelete: Cascade)
+  date          DateTime @default(now())
+  description   String
+  cost          Float?
+  performedById String
+  createdAt     DateTime @default(now())
+
+  @@index([assetId])
+}
+
+model ItSettings {
+  id                   String  @id @default(cuid())
+  schoolId             String  @unique
+  slaLow               Int     @default(1440)  // minutes — 24h
+  slaMedium            Int     @default(480)   // 8h
+  slaHigh              Int     @default(120)   // 2h
+  slaUrgent            Int     @default(60)    // 1h
+  slaCritical          Int     @default(30)    // 30min
+  escalationAfterHours Int     @default(4)
+  notifyNewTicket      Boolean @default(true)
+  notifyAssignment     Boolean @default(true)
+  notifySlaBreach      Boolean @default(true)
+  notifyEscalation     Boolean @default(true)
+  notifyResolution     Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 // ─── TRANSPORT ───────────────────────────────
@@ -1357,6 +1498,12 @@ model StaffProfile {
   leaveRequests   LeaveRequest[]
   contracts       StaffContract[]
   reviews         PerformanceReview[]
+  payrolls        HrPayroll[]          @relation("StaffPayrolls")
+  shift           HrShiftAssignment?   @relation("StaffShift")
+  attendances     HrAttendance[]       @relation("StaffAttendances")
+  documents       HrDocument[]         @relation("StaffDocuments")
+  payslips        PayslipRecord[]      @relation("StaffPayslips")
+  loans           StaffLoan[]          @relation("StaffLoans")
 
   @@index([schoolId])
 }
@@ -1484,9 +1631,11 @@ enum StockMovementType {
 }
 
 model StoreItem {
-  id          String    @id @default(cuid())
-  schoolId    String
-  school      School    @relation("StoreItems", fields: [schoolId], references: [id])
+  id          String        @id @default(cuid())
+  orgId       String
+  org         Organization  @relation("OrgStoreItems", fields: [orgId], references: [id])
+  locationId  String?
+  storeLocation StoreLocation? @relation(fields: [locationId], references: [id])
   name        String
   nameAr      String?
   sku         String?
@@ -1495,38 +1644,73 @@ model StoreItem {
   unit        String    @default("pcs")
   quantity    Int       @default(0)
   minQuantity Int       @default(5)  // alert threshold
-  unitCost    Float?
-  location    String?   // storage location
+  location    String?   // shelf/bin label within the location
   imageUrl    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  movements   StockMovement[]
-  itemRequests StoreItemRequest[]
+  unitCost    Float?    // cost per unit for inventory valuation
+  supplierId  String?
+  supplier    Supplier? @relation("ItemSupplier", fields: [supplierId], references: [id])
 
-  @@index([schoolId])
+  movements    StockMovement[]
+  itemRequests StoreItemRequest[]
+  poLines      PurchaseOrderItem[] @relation("ItemPOLines")
+
+  @@index([orgId])
+  @@index([locationId])
+  @@index([supplierId])
+}
+
+model StoreLocation {
+  id        String      @id @default(cuid())
+  orgId     String
+  org       Organization @relation("OrgStoreLocations", fields: [orgId], references: [id])
+  name      String      // e.g. "Main Warehouse", "Store A", "Store B"
+  items     StoreItem[]
+  requisitions Requisition[] @relation("RequisitionStorageLocation")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([orgId])
 }
 
 model StoreItemRequest {
-  id            String    @id @default(cuid())
-  schoolId      String
-  school        School    @relation("SchoolStoreItemRequests", fields: [schoolId], references: [id])
+  id            String       @id @default(cuid())
+  orgId         String
+  org           Organization @relation("OrgStoreItemRequests", fields: [orgId], references: [id])
   requestedById String
-  requestedBy   User      @relation("UserStoreItemRequests", fields: [requestedById], references: [id])
-  itemId        String
-  item          StoreItem @relation(fields: [itemId], references: [id])
+  requestedBy   User         @relation("UserStoreItemRequests", fields: [requestedById], references: [id])
+
+  // Free-text from employee (they don't see the inventory)
+  itemName      String
   quantity      Int       @default(1)
   reason        String?
+
+  // Optionally linked to actual inventory item by store manager when approving
+  itemId        String?
+  item          StoreItem? @relation(fields: [itemId], references: [id])
+
+  // Cart of items the store manager will fulfil (JSON: [{itemId,itemName,quantity,unit}])
+  fulfillmentItems Json?
+
   status        String    @default("PENDING") // PENDING, APPROVED, REJECTED, READY, COLLECTED
-  notes         String?
+  notes         String?   // rejection reason or approval notes
+
   approvedById  String?
   approvedBy    User?     @relation("UserStoreItemApprovals", fields: [approvedById], references: [id])
   approvedAt    DateTime?
   collectedAt   DateTime?
+
+  // Loan support: store manager can mark item as loan with a return due date
+  isLoan        Boolean   @default(false)
+  loanDueDate   DateTime?
+  returnedAt    DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  @@index([schoolId])
+  @@index([orgId])
   @@index([requestedById])
   @@index([itemId])
 }
@@ -1535,14 +1719,106 @@ model StockMovement {
   id        String             @id @default(cuid())
   itemId    String
   item      StoreItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  schoolId  String
+  orgId     String
+  org       Organization       @relation("OrgStockMovements", fields: [orgId], references: [id])
   type      StockMovementType
   quantity  Int
-  reason    String?
-  userId    String             // who performed the action
+  reason    String?            // human text; may contain "sreq:<id>" or "req:<id>" for traceability
+  userId    String             // who performed (logged) the movement
+  user      User               @relation("UserStockMovements", fields: [userId], references: [id])
   createdAt DateTime           @default(now())
 
   @@index([itemId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+// ─── STORE PROCUREMENT EXTENSION ─────────────
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model Supplier {
+  id            String          @id @default(cuid())
+  orgId         String
+  org           Organization    @relation("OrgSuppliers", fields: [orgId], references: [id])
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  contactPerson String?
+  notes         String?
+  rating        Int             @default(0)  // 0-5 stars
+  items         StoreItem[]     @relation("ItemSupplier")
+  purchaseOrders PurchaseOrder[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orgId])
+}
+
+model PurchaseOrder {
+  id               String              @id @default(cuid())
+  orgId            String
+  org              Organization        @relation("OrgPurchaseOrders", fields: [orgId], references: [id])
+  supplierId       String?
+  supplier         Supplier?           @relation(fields: [supplierId], references: [id])
+  status           PurchaseOrderStatus @default(DRAFT)
+  notes            String?
+  expectedDelivery DateTime?
+  receivedAt       DateTime?
+  totalCost        Float               @default(0)
+  createdById      String
+  createdBy        User                @relation("POCreatedBy", fields: [createdById], references: [id])
+  items            PurchaseOrderItem[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([orgId])
+  @@index([supplierId])
+}
+
+model PurchaseOrderItem {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        StoreItem?    @relation("ItemPOLines", fields: [itemId], references: [id])
+  itemName    String
+  unit        String        @default("pcs")
+  quantity    Float
+  unitCost    Float         @default(0)
+  receivedQty Float         @default(0)
+
+  @@index([orderId])
+  @@index([itemId])
+}
+
+// ─── HR LEAVE POLICY ─────────────────────────
+
+model HrLeavePolicy {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation("SchoolLeavePolicy", fields: [schoolId], references: [id])
+  scope           String   @default("SCHOOL") // SCHOOL | ALL_SCHOOLS | COMPANY | ALL_USERS
+  monthlyLimit    Int      @default(2)         // max leave days per month
+  yearlyLimit     Int      @default(21)        // max leave days per year
+  annualLimit     Int      @default(21)
+  sickLimit       Int      @default(10)
+  unpaidLimit     Int      @default(5)
+  maternityLimit  Int      @default(90)
+  paternityLimit  Int      @default(7)
+  notes           String?
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@index([schoolId])
 }
 
@@ -1866,6 +2142,25 @@ model Requisition {
   purchasedById        String?
   purchaseInvoiceUrls  String[]          @default([])
 
+  // ── Store Manager first-gate ─────────────────────────────────────────────
+  smStatus            String?           // null=pending_sm | SM_APPROVED | SM_DECLINED
+  smReviewedById      String?
+  smReviewedBy        User?             @relation("SMReviewedRequisitions", fields: [smReviewedById], references: [id])
+  smReviewedAt        DateTime?
+  smNote              String?           // decline reason or approval note
+
+  // Storage planning (SM fills while Req Manager processes)
+  storageLocationId   String?
+  storageLocation     StoreLocation?    @relation("RequisitionStorageLocation", fields: [storageLocationId], references: [id])
+  storageCategory     String?
+  storageShelfBin     String?
+
+  // Final acceptance into inventory by SM
+  storageItemCreated  Boolean           @default(false)
+  storageItemId       String?
+  storageAcceptedAt   DateTime?
+  storageAcceptedById String?
+
   // Store receipt (what was actually received vs ordered)
   storeReceivedItems   Json?             // [{name,orderedQty,receivedQty,unit,note}]
   storeNotes           String?
@@ -1939,4 +2234,740 @@ model JobApplication {
 
   @@index([organizationId])
   @@index([status])
+}
+
+// ─── HR MODULE EXTENSIONS ────────────────────────────────────────────────────
+
+model HrDepartment {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation("HrDepartments", fields: [schoolId], references: [id])
+  name        String
+  description String?
+  headId      String?
+  budget      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([schoolId])
+}
+
+model HrPayroll {
+  id         String       @id @default(cuid())
+  schoolId   String
+  school     School       @relation("HrPayrolls", fields: [schoolId], references: [id])
+  staffId    String
+  staff      StaffProfile @relation("StaffPayrolls", fields: [staffId], references: [id])
+  month      Int
+  year       Int
+  baseSalary Float
+  bonus      Float        @default(0)
+  deductions Float        @default(0)
+  netPay     Float
+  status     String       @default("PENDING")
+  notes      String?
+  paidAt     DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  @@unique([staffId, month, year])
+  @@index([schoolId])
+}
+
+model HrShift {
+  id          String              @id @default(cuid())
+  schoolId    String
+  school      School              @relation("HrShifts", fields: [schoolId], references: [id])
+  name        String
+  startTime   String
+  endTime     String
+  activeDays  String[]            @default([])
+  color       String              @default("#4F46E5")
+  description String?
+  createdAt   DateTime            @default(now())
+  assignments HrShiftAssignment[]
+  @@index([schoolId])
+}
+
+model HrShiftAssignment {
+  id         String       @id @default(cuid())
+  shiftId    String
+  shift      HrShift      @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staffId    String       @unique
+  staff      StaffProfile @relation("StaffShift", fields: [staffId], references: [id])
+  assignedAt DateTime     @default(now())
+}
+
+model HrJobPosting {
+  id           String             @id @default(cuid())
+  schoolId     String
+  school       School             @relation("HrJobPostings", fields: [schoolId], references: [id])
+  title        String
+  department   String?
+  location     String?
+  jobType      String             @default("FULL_TIME")
+  description  String?
+  requirements String?
+  salary       Float?
+  status       String             @default("OPEN")
+  isInternal   Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  applications HrJobApplication[]
+  @@index([schoolId])
+}
+
+model HrJobApplication {
+  id              String        @id @default(cuid())
+  schoolId        String
+  school          School        @relation("HrJobApplications", fields: [schoolId], references: [id])
+  postingId       String?
+  posting         HrJobPosting? @relation(fields: [postingId], references: [id])
+  name            String
+  email           String
+  phone           String?
+  appliedFor      String
+  source          String        @default("WEBSITE")
+  status          String        @default("NEW")
+  interviewDate   DateTime?
+  interviewerName String?
+  notes           String?
+  appliedAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  @@index([schoolId])
+}
+
+model TalentCandidate {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation("TalentCandidates", fields: [schoolId], references: [id])
+  name            String
+  email           String?
+  phone           String?
+  appliedPosition String?
+  department      String?
+  score           Int      @default(5)
+  status          String   @default("ACTIVE")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([schoolId])
+}
+
+model HrAttendance {
+  id          String       @id @default(cuid())
+  schoolId    String
+  school      School       @relation("HrAttendances", fields: [schoolId], references: [id])
+  staffId     String
+  staff       StaffProfile @relation("StaffAttendances", fields: [staffId], references: [id])
+  date        DateTime     @db.Date
+  checkIn     String?
+  checkOut    String?
+  status      String       @default("PRESENT")
+  notes       String?
+  hoursWorked Float?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@unique([staffId, date])
+  @@index([schoolId])
+}
+
+model HrAnnouncement {
+  id         String   @id @default(cuid())
+  schoolId   String
+  school     School   @relation("HrAnnouncements", fields: [schoolId], references: [id])
+  authorId   String
+  author     User     @relation("HrAnnouncementAuthor", fields: [authorId], references: [id])
+  title      String
+  content    String
+  priority   String   @default("MEDIUM")
+  targetType String   @default("ALL_STAFF")
+  targetDept String?
+  isPinned   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([schoolId])
+}
+
+model HrDocumentType {
+  id        String       @id @default(cuid())
+  schoolId  String
+  school    School       @relation("HrDocumentTypes", fields: [schoolId], references: [id])
+  name      String
+  required  Boolean      @default(true)
+  hasExpiry Boolean      @default(false)
+  sortOrder Int          @default(0)
+  documents HrDocument[]
+  @@index([schoolId])
+}
+
+model HrDocument {
+  id           String         @id @default(cuid())
+  staffId      String
+  staff        StaffProfile   @relation("StaffDocuments", fields: [staffId], references: [id])
+  typeId       String
+  docType      HrDocumentType @relation(fields: [typeId], references: [id])
+  fileUrl      String?
+  fileName     String?
+  status       String         @default("PENDING")
+  expiresAt    DateTime?
+  uploadedAt   DateTime       @default(now())
+  reviewedById String?
+  reviewedAt   DateTime?
+  @@index([staffId])
+  @@index([typeId])
+}
+
+// ─────────────────────────────────────────────
+// IT COMPLAINTS
+// ─────────────────────────────────────────────
+
+enum ItComplaintStatus {
+  OPEN
+  UNDER_REVIEW
+  ESCALATED_TO_HR
+  RESOLVED
+  DISMISSED
+}
+
+model ItComplaint {
+  id               String             @id @default(cuid())
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  schoolId         String
+  submitterId      String
+  againstId        String
+  ticketId         String?
+  description      String
+  status           ItComplaintStatus  @default(OPEN)
+  itManagerNotes   String?
+  hrNotes          String?
+  escalatedToHrAt  DateTime?
+  resolvedAt       DateTime?
+
+  school     School               @relation("SchoolItComplaints", fields: [schoolId], references: [id])
+  submitter  User                 @relation("ComplaintSubmitter", fields: [submitterId], references: [id])
+  against    User                 @relation("ComplaintAgainst", fields: [againstId], references: [id])
+  ticket     Ticket?              @relation(fields: [ticketId], references: [id])
+  messages   ItComplaintMessage[]
+
+  @@index([schoolId])
+  @@index([submitterId])
+  @@index([againstId])
+}
+
+model ItComplaintMessage {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  complaintId String
+  authorId    String
+  content     String
+
+  complaint   ItComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  author      User        @relation("ComplaintMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([complaintId])
+}
+
+// ─────────────────────────────────────────────
+// FINANCE MODULE — ENTERPRISE ACCOUNTING
+// ─────────────────────────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum BudgetStatus {
+  DRAFT
+  APPROVED
+  ACTIVE
+  CLOSED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+  SIBLING
+  EMPLOYEE_CHILD
+  SCHOLARSHIP
+  EARLY_PAYMENT
+}
+
+enum FineCalcType {
+  PERCENTAGE_PER_DAY
+  FIXED_AMOUNT
+  FIXED_PER_DAY
+}
+
+enum CreditNoteStatus {
+  PENDING
+  APPROVED
+  APPLIED
+  REJECTED
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  PROCESSING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum PayslipStatus {
+  PENDING
+  APPROVED
+  PAID
+}
+
+enum StaffLoanStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  REJECTED
+}
+
+enum ExpenseCategory {
+  TRAVEL
+  SUPPLIES
+  MAINTENANCE
+  UTILITIES
+  MARKETING
+  TRAINING
+  ENTERTAINMENT
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REIMBURSED
+}
+
+// Chart of Accounts
+model ChartOfAccount {
+  id          String         @id @default(cuid())
+  orgId       String
+  org         Organization   @relation("OrgChartOfAccounts", fields: [orgId], references: [id])
+  schoolId    String?
+  code        String
+  name        String
+  nameAr      String?
+  type        AccountType
+  subType     String?
+  parentId    String?
+  parent      ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children    ChartOfAccount[] @relation("AccountHierarchy")
+  isActive    Boolean        @default(true)
+  description String?
+  lines           JournalEntryLine[]
+  openingBalances OpeningBalance[]   @relation("AccountOpeningBalances")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([orgId, code])
+  @@index([orgId])
+}
+
+// Journal Entries (Double-Entry Accounting)
+model JournalEntry {
+  id          String         @id @default(cuid())
+  orgId       String
+  org         Organization   @relation("OrgJournalEntries", fields: [orgId], references: [id])
+  schoolId    String?
+  entryNumber String
+  date        DateTime
+  description String
+  reference   String?
+  refType     String?
+  status      JournalStatus  @default(DRAFT)
+  isReversed  Boolean        @default(false)
+  reversedBy  String?
+  createdById String
+  lines       JournalEntryLine[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([orgId, entryNumber])
+  @@index([orgId])
+  @@index([schoolId])
+}
+
+model JournalEntryLine {
+  id         String         @id @default(cuid())
+  entryId    String
+  entry      JournalEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId  String
+  account    ChartOfAccount @relation(fields: [accountId], references: [id])
+  debit      Decimal        @default(0) @db.Decimal(18, 2)
+  credit     Decimal        @default(0) @db.Decimal(18, 2)
+  memo       String?
+  costCenter String?
+
+  @@index([entryId])
+  @@index([accountId])
+}
+
+// Budget Management
+model Budget {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation("OrgBudgets", fields: [orgId], references: [id])
+  schoolId    String
+  name        String
+  fiscalYear  Int
+  startDate   DateTime
+  endDate     DateTime
+  status      BudgetStatus @default(DRAFT)
+  totalAmount Decimal      @db.Decimal(18, 2)
+  approvedById String?
+  approvedAt  DateTime?
+  items       BudgetItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([orgId])
+  @@index([schoolId])
+}
+
+model BudgetItem {
+  id          String   @id @default(cuid())
+  budgetId    String
+  budget      Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  accountCode String?
+  category    String
+  amount      Decimal  @db.Decimal(18, 2)
+  actualSpent Decimal  @default(0) @db.Decimal(18, 2)
+  description String?
+
+  @@index([budgetId])
+}
+
+// Fee Templates (for bulk invoice generation)
+model FeeTemplate {
+  id           String            @id @default(cuid())
+  schoolId     String
+  name         String
+  academicYear String
+  curriculum   String?
+  gradeLevel   String?
+  isActive     Boolean           @default(true)
+  items        FeeTemplateItem[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([schoolId])
+}
+
+model FeeTemplateItem {
+  id          String      @id @default(cuid())
+  templateId  String
+  template    FeeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  feeType     FeeType
+  label       String?
+  amount      Decimal     @db.Decimal(18, 2)
+  currency    Currency    @default(SAR)
+  isMandatory Boolean     @default(true)
+  dueDate     DateTime?
+
+  @@index([templateId])
+}
+
+// Payment Plans & Installments
+model PaymentPlan {
+  id           String               @id @default(cuid())
+  invoiceId    String               @unique
+  invoice      Invoice              @relation(fields: [invoiceId], references: [id])
+  installments PaymentInstallment[]
+  createdAt    DateTime             @default(now())
+}
+
+model PaymentInstallment {
+  id       String        @id @default(cuid())
+  planId   String
+  plan     PaymentPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dueDate  DateTime
+  amount   Decimal       @db.Decimal(18, 2)
+  status   PaymentStatus @default(PENDING)
+  paidAt   DateTime?
+
+  @@index([planId])
+}
+
+// Discount Rules
+model DiscountRule {
+  id        String       @id @default(cuid())
+  schoolId  String
+  name      String
+  nameAr    String?
+  type      DiscountType
+  value     Decimal      @db.Decimal(10, 2)
+  feeTypes  String[]     @default([])
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  @@index([schoolId])
+}
+
+// Fine Rules (late payment penalties)
+model FineRule {
+  id         String       @id @default(cuid())
+  schoolId   String
+  name       String
+  feeType    FeeType?
+  graceDays  Int          @default(0)
+  fineType   FineCalcType
+  fineValue  Decimal      @db.Decimal(10, 2)
+  maxFine    Decimal?     @db.Decimal(18, 2)
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+
+  @@index([schoolId])
+}
+
+// Credit Notes
+model CreditNote {
+  id           String           @id @default(cuid())
+  orgId        String
+  schoolId     String
+  invoiceId    String?
+  studentId    String
+  amount       Decimal          @db.Decimal(18, 2)
+  reason       String
+  status       CreditNoteStatus @default(PENDING)
+  issuedById   String
+  approvedById String?
+  approvedAt   DateTime?
+  appliedAt    DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([orgId])
+  @@index([studentId])
+}
+
+// Payroll Runs
+model PayrollRun {
+  id              String           @id @default(cuid())
+  orgId           String
+  schoolId        String
+  month           Int
+  year            Int
+  status          PayrollRunStatus @default(DRAFT)
+  totalGross      Decimal          @default(0) @db.Decimal(18, 2)
+  totalDeductions Decimal          @default(0) @db.Decimal(18, 2)
+  totalNet        Decimal          @default(0) @db.Decimal(18, 2)
+  processedById   String?
+  approvedById    String?
+  paidAt          DateTime?
+  slips           PayslipRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([schoolId, month, year])
+  @@index([orgId])
+  @@index([schoolId])
+}
+
+model PayslipRecord {
+  id                 String        @id @default(cuid())
+  runId              String
+  run                PayrollRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  staffId            String
+  staff              StaffProfile  @relation("StaffPayslips", fields: [staffId], references: [id])
+  baseSalary         Decimal       @db.Decimal(18, 2)
+  overtime           Decimal       @default(0) @db.Decimal(18, 2)
+  bonus              Decimal       @default(0) @db.Decimal(18, 2)
+  allowances         Decimal       @default(0) @db.Decimal(18, 2)
+  grossPay           Decimal       @db.Decimal(18, 2)
+  taxDeduction       Decimal       @default(0) @db.Decimal(18, 2)
+  insuranceDeduction Decimal       @default(0) @db.Decimal(18, 2)
+  loanDeduction      Decimal       @default(0) @db.Decimal(18, 2)
+  leaveDeduction     Decimal       @default(0) @db.Decimal(18, 2)
+  otherDeductions    Decimal       @default(0) @db.Decimal(18, 2)
+  totalDeductions    Decimal       @db.Decimal(18, 2)
+  netPay             Decimal       @db.Decimal(18, 2)
+  bankAccount        String?
+  status             PayslipStatus @default(PENDING)
+
+  @@unique([runId, staffId])
+  @@index([runId])
+  @@index([staffId])
+}
+
+// Staff Loans
+model StaffLoan {
+  id                String     @id @default(cuid())
+  staffId           String
+  staff             StaffProfile @relation("StaffLoans", fields: [staffId], references: [id])
+  schoolId          String
+  amount            Decimal    @db.Decimal(18, 2)
+  reason            String?
+  totalInstallments Int
+  paidInstallments  Int        @default(0)
+  monthlyDeduction  Decimal    @db.Decimal(18, 2)
+  status            StaffLoanStatus @default(PENDING)
+  approvedById      String?
+  startDate         DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([staffId])
+  @@index([schoolId])
+}
+
+// Expense Claims
+model ExpenseClaim {
+  id            String          @id @default(cuid())
+  orgId         String
+  schoolId      String
+  submittedById String
+  title         String
+  category      ExpenseCategory
+  amount        Decimal         @db.Decimal(18, 2)
+  currency      Currency        @default(SAR)
+  date          DateTime
+  description   String?
+  receiptUrl    String?
+  costCenter    String?
+  status        ExpenseStatus   @default(PENDING)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectedAt    DateTime?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orgId])
+  @@index([schoolId])
+  @@index([submittedById])
+}
+
+// Bank Accounts
+model BankAccount {
+  id             String         @id @default(cuid())
+  orgId          String
+  org            Organization   @relation("OrgBankAccounts", fields: [orgId], references: [id])
+  schoolId       String?
+  name           String
+  accountNumber  String
+  bankName       String
+  iban           String?
+  currency       Currency       @default(SAR)
+  currentBalance Decimal        @default(0) @db.Decimal(18, 2)
+  isDefault      Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  statements     BankStatement[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([orgId])
+}
+
+model BankStatement {
+  id               String      @id @default(cuid())
+  bankAccountId    String
+  bankAccount      BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  date             DateTime
+  description      String
+  amount           Decimal     @db.Decimal(18, 2)
+  runningBalance   Decimal     @db.Decimal(18, 2)
+  isReconciled     Boolean     @default(false)
+  matchedPaymentId String?
+  createdAt        DateTime    @default(now())
+
+  @@index([bankAccountId])
+}
+
+enum FiscalYearStatus {
+  OPEN
+  CLOSED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+model FiscalYear {
+  id          String           @id @default(cuid())
+  orgId       String
+  org         Organization     @relation("OrgFiscalYears", fields: [orgId], references: [id])
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      FiscalYearStatus @default(OPEN)
+  closedAt    DateTime?
+  closedById  String?
+  periods     AccountingPeriod[]
+  openingBalances OpeningBalance[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([orgId])
+}
+
+model AccountingPeriod {
+  id           String       @id @default(cuid())
+  fiscalYearId String
+  fiscalYear   FiscalYear   @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  name         String
+  month        Int
+  year         Int
+  startDate    DateTime
+  endDate      DateTime
+  status       PeriodStatus @default(OPEN)
+  closedAt     DateTime?
+  closedById   String?
+  createdAt    DateTime     @default(now())
+
+  @@unique([fiscalYearId, month, year])
+  @@index([fiscalYearId])
+}
+
+model OpeningBalance {
+  id           String         @id @default(cuid())
+  orgId        String
+  org          Organization   @relation("OrgOpeningBalances", fields: [orgId], references: [id])
+  schoolId     String?
+  fiscalYearId String
+  fiscalYear   FiscalYear     @relation(fields: [fiscalYearId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      ChartOfAccount @relation("AccountOpeningBalances", fields: [accountId], references: [id])
+  debit        Decimal        @default(0) @db.Decimal(18, 2)
+  credit       Decimal        @default(0) @db.Decimal(18, 2)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([fiscalYearId, accountId])
+  @@index([orgId])
+}
+
+model CostCenter {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation("OrgCostCenters", fields: [orgId], references: [id])
+  schoolId    String?
+  code        String
+  name        String
+  nameAr      String?
+  description String?
+  isActive    Boolean      @default(true)
+  parentId    String?
+  parent      CostCenter?  @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children    CostCenter[] @relation("CostCenterHierarchy")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([orgId, code])
+  @@index([orgId])
 }

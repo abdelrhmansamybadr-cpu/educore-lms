@@ -325,6 +325,11 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
           { key: 'fin-expenses',  label: 'Expense Claims',      labelAr: 'مطالبات المصروفات',   icon: <Briefcase size={18} />,       href: `${fp}?tab=expenses` },
           { key: 'fin-bank',      label: 'Bank Accounts',       labelAr: 'الحسابات البنكية',    icon: <Building2 size={18} />,       href: `${fp}?tab=bank` },
         ] },
+      { key: 'finance-periods', labelAr: 'الفترات', labelEn: 'Periods & Structure',
+        items: [
+          { key: 'fin-fiscal-years',  label: 'Fiscal Years',  labelAr: 'السنوات المالية', icon: <Calendar size={18} />,  href: `${fp}?tab=fiscal-years` },
+          { key: 'fin-cost-centers',  label: 'Cost Centers',  labelAr: 'مراكز التكلفة',   icon: <Building2 size={18} />, href: `${fp}?tab=cost-centers` },
+        ] },
       { key: 'finance-reports', labelAr: 'التقارير', labelEn: 'Reports',
         items: [
           { key: 'fin-reports',   label: 'Financial Reports',   labelAr: 'التقارير المالية',    icon: <BarChart2 size={18} />,       href: `${fp}?tab=reports` },
