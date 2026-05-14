@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, getApiError } from '@/lib/api'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody } from '@/components/ui'
 import { Sparkles, Loader2, Copy, CheckCheck } from 'lucide-react'
@@ -29,8 +29,8 @@ export default function TeacherAiPlannerPage() {
         language: locale === 'ar' ? 'ar' : 'en',
       })
       setResult(res.data?.data)
-    } catch {
-      toast.error(isRtl ? 'حدث خطأ في توليد الخطة' : 'Failed to generate lesson plan')
+    } catch (err: any) {
+      toast.error(getApiError(err, isRtl ? 'حدث خطأ في توليد الخطة' : 'Failed to generate lesson plan'))
     } finally {
       setLoading(false)
     }

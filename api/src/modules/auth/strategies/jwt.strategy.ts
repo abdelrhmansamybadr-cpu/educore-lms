@@ -8,7 +8,8 @@ export interface JwtPayload {
   sub: string       // user id
   email: string
   role: string
-  schoolId?: string
+  schoolId?: string | null
+  orgId?: string | null
 }
 
 @Injectable()
@@ -30,6 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       include: { profile: true },
     })
     if (!user || !user.isActive) throw new UnauthorizedException()
-    return user
+    // Attach payload fields that aren't on the DB model
+    return { ...user, orgId: payload.orgId ?? null }
   }
 }

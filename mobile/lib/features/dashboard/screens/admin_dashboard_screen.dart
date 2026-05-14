@@ -5,7 +5,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/widgets/curriculum_badge.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/school_provider.dart';
 import '../../../shared/widgets/bottom_nav_widget.dart';
 import '../../../shared/widgets/stat_card_widget.dart';
 
@@ -66,6 +68,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final school = context.watch<SchoolProvider>();
     final isAr = auth.isAr;
     final user = auth.user;
 
@@ -125,6 +128,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 6),
+                          const CurriculumBadge(),
                         ],
                       ),
                       Row(
@@ -200,48 +205,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     childAspectRatio: 1.8,
                   ),
                   delegate: SliverChildListDelegate([
-                    _adminActionCard(
-                      context,
-                      icon: Icons.people_rounded,
-                      label: isAr ? 'إدارة المستخدمين' : 'User Management',
-                      color: AppColors.primary,
-                      route: '/admin/users',
-                    ),
-                    _adminActionCard(
-                      context,
-                      icon: Icons.event_rounded,
-                      label: isAr ? 'إدارة الفعاليات' : 'Events',
-                      color: AppColors.success,
-                      route: '/admin/events',
-                    ),
-                    _adminActionCard(
-                      context,
-                      icon: Icons.chat_bubble_rounded,
-                      label: isAr ? 'الرسائل' : 'Messages',
-                      color: AppColors.info,
-                      route: '/admin/messages',
-                    ),
-                    _adminActionCard(
-                      context,
-                      icon: Icons.notifications_rounded,
-                      label: isAr ? 'الإشعارات' : 'Notifications',
-                      color: AppColors.warning,
-                      route: '/admin/notifications',
-                    ),
-                    _adminActionCard(
-                      context,
-                      icon: Icons.settings_rounded,
-                      label: isAr ? 'الإعدادات' : 'Settings',
-                      color: AppColors.textSecondary,
-                      route: '/admin/settings',
-                    ),
-                    _adminActionCard(
-                      context,
-                      icon: Icons.person_rounded,
-                      label: isAr ? 'الملف الشخصي' : 'Profile',
-                      color: AppColors.error,
-                      route: '/admin/profile',
-                    ),
+                    _adminActionCard(context, icon: Icons.people_rounded, label: isAr ? 'إدارة المستخدمين' : 'Users', color: AppColors.primary, route: '/admin/users'),
+                    if (school.isModuleEnabled('EVENTS'))
+                      _adminActionCard(context, icon: Icons.event_rounded, label: isAr ? 'الفعاليات' : 'Events', color: AppColors.success, route: '/admin/events'),
+                    if (school.isModuleEnabled('FINANCE'))
+                      _adminActionCard(context, icon: Icons.account_balance_wallet_rounded, label: isAr ? 'المالية' : 'Finance', color: const Color(0xFF059669), route: '/admin/finance'),
+                    if (school.isModuleEnabled('HR'))
+                      _adminActionCard(context, icon: Icons.badge_rounded, label: isAr ? 'الموارد البشرية' : 'HR', color: const Color(0xFF7C3AED), route: '/admin/hr'),
+                    if (school.isModuleEnabled('CANTEEN'))
+                      _adminActionCard(context, icon: Icons.restaurant_rounded, label: isAr ? 'المقصف' : 'Canteen', color: const Color(0xFFEA580C), route: '/admin/canteen'),
+                    if (school.isModuleEnabled('TRANSPORT'))
+                      _adminActionCard(context, icon: Icons.directions_bus_rounded, label: isAr ? 'النقل' : 'Transport', color: const Color(0xFF0891B2), route: '/admin/transport'),
+                    if (school.isModuleEnabled('LIBRARY'))
+                      _adminActionCard(context, icon: Icons.local_library_rounded, label: isAr ? 'المكتبة' : 'Library', color: const Color(0xFFB45309), route: '/admin/library'),
+                    if (school.isModuleEnabled('ADMISSION'))
+                      _adminActionCard(context, icon: Icons.how_to_reg_rounded, label: isAr ? 'القبول' : 'Admission', color: const Color(0xFF0D9488), route: '/admin/admission'),
+                    _adminActionCard(context, icon: Icons.chat_bubble_rounded, label: isAr ? 'الرسائل' : 'Messages', color: AppColors.info, route: '/admin/messages'),
+                    _adminActionCard(context, icon: Icons.settings_rounded, label: isAr ? 'الإعدادات' : 'Settings', color: AppColors.textSecondary, route: '/admin/settings'),
                   ]),
                 ),
               ),

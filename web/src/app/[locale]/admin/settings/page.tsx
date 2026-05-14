@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, getApiError } from '@/lib/api'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Skeleton } from '@/components/ui'
 import { Settings, Save } from 'lucide-react'
@@ -45,7 +45,7 @@ export default function AdminSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['school-settings'] })
       toast.success(isRtl ? 'تم حفظ الإعدادات' : 'Settings saved')
     },
-    onError: () => toast.error(isRtl ? 'حدث خطأ' : 'Failed to save'),
+    onError: (err: any) => toast.error(getApiError(err, isRtl ? 'حدث خطأ' : 'Failed to save')),
   })
 
   const fields = [

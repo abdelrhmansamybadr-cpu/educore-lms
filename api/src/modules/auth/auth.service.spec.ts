@@ -10,7 +10,7 @@ import * as bcrypt from 'bcryptjs'
 const mockPrisma = {
   user: {
     findFirst: jest.fn(),
-    findUnique: jest.fn(),
+    findUnique: jest.fn().mockResolvedValue({ organizationId: null }),
     create: jest.fn(),
     update: jest.fn().mockResolvedValue({}),
   },
@@ -22,9 +22,16 @@ const mockPrisma = {
     deleteMany: jest.fn(),
     delete: jest.fn(),
   },
+  school: {
+    findUnique: jest.fn().mockResolvedValue({ organizationId: null }),
+  },
+  orgMember: {
+    findFirst: jest.fn().mockResolvedValue(null),
+  },
 }
 
 const mockJwt = {
+  sign: jest.fn().mockReturnValue('mock_token'),
   signAsync: jest.fn().mockResolvedValue('mock_token'),
   verifyAsync: jest.fn(),
 }

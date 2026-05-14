@@ -5,7 +5,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/widgets/curriculum_badge.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/school_provider.dart';
 import '../../../shared/widgets/bottom_nav_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/skeleton_loader.dart';
@@ -51,6 +53,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final school = context.watch<SchoolProvider>();
     final isAr = auth.isAr;
     final user = auth.user;
 
@@ -93,6 +96,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        const CurriculumBadge(),
                       ],
                     ),
                     Row(
@@ -146,7 +151,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                 // Quick actions
                                 SliverPadding(
                                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                  sliver: SliverToBoxAdapter(child: _buildQuickAccessRow(isAr)),
+                                  sliver: SliverToBoxAdapter(child: _buildQuickAccessRow(isAr, school)),
                                 ),
                                 // Section header
                                 SliverToBoxAdapter(
@@ -212,26 +217,26 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
-  Widget _buildQuickAccessRow(bool isAr) {
-    return Row(
-      children: [
-        Expanded(
-          child: _quickBtn(
-            icon: Icons.child_care_rounded,
-            label: isAr ? 'الأبناء' : 'Children',
-            color: AppColors.primary,
-            onTap: () => context.go('/parent/children'),
-          ),
+  Widget _buildQuickAccessRow(bool isAr, SchoolProvider school) {
+    final buttons = <Widget>[
+      Expanded(
+        child: _quickBtn(
+          icon: Icons.child_care_rounded,
+          label: isAr ? 'الأبناء' : 'Children',
+          color: AppColors.primary,
+          onTap: () => context.go('/parent/children'),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _quickBtn(
-            icon: Icons.chat_bubble_rounded,
-            label: isAr ? 'الرسائل' : 'Messages',
-            color: AppColors.info,
-            onTap: () => context.go('/parent/messages'),
-          ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: _quickBtn(
+          icon: Icons.chat_bubble_rounded,
+          label: isAr ? 'الرسائل' : 'Messages',
+          color: AppColors.info,
+          onTap: () => context.go('/parent/messages'),
         ),
+      ),
+      if (school.isModuleEnabled('EVENTS')) ...[
         const SizedBox(width: 10),
         Expanded(
           child: _quickBtn(
@@ -241,17 +246,18 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             onTap: () => context.go('/parent/events'),
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _quickBtn(
-            icon: Icons.settings_rounded,
-            label: isAr ? 'الإعدادات' : 'Settings',
-            color: AppColors.textSecondary,
-            onTap: () => context.go('/parent/settings'),
-          ),
-        ),
       ],
-    );
+      const SizedBox(width: 10),
+      Expanded(
+        child: _quickBtn(
+          icon: Icons.settings_rounded,
+          label: isAr ? 'الإعدادات' : 'Settings',
+          color: AppColors.textSecondary,
+          onTap: () => context.go('/parent/settings'),
+        ),
+      ),
+    ];
+    return Row(children: buttons);
   }
 
   Widget _quickBtn({

@@ -382,7 +382,8 @@ export class FinanceController {
   @Roles(...FINANCE_ADMIN)
   @ApiOperation({ summary: 'Create budget' })
   async createBudget(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
-    const sid = await this.resolveSchoolId(user, schoolId)
+    // dto.schoolId takes priority (user explicitly chose a school in the modal)
+    const sid = dto.schoolId || await this.resolveSchoolId(user, schoolId)
     return this.finance.createBudget({ ...dto, orgId: user.orgId, schoolId: sid! })
   }
 
@@ -419,7 +420,7 @@ export class FinanceController {
   @Roles(...PAYROLL_ROLES)
   @ApiOperation({ summary: 'Create new payroll run' })
   async createPayrollRun(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
-    const sid = await this.resolveSchoolId(user, schoolId)
+    const sid = dto.schoolId || await this.resolveSchoolId(user, schoolId)
     return this.finance.createPayrollRun({ orgId: user.orgId, schoolId: sid!, month: dto.month, year: dto.year })
   }
 
@@ -448,6 +449,20 @@ export class FinanceController {
   @ApiOperation({ summary: 'Mark payroll run as paid' })
   payPayrollRun(@Param('id') id: string) {
     return this.finance.payPayrollRun(id)
+  }
+
+  @Delete('payroll-runs/:id')
+  @Roles(...PAYROLL_ROLES)
+  @ApiOperation({ summary: 'Delete a DRAFT payroll run' })
+  deletePayrollRun(@Param('id') id: string) {
+    return this.finance.deletePayrollRun(id)
+  }
+
+  @Post('payroll-runs/:id/reject')
+  @Roles(CFO, FINANCE_MANAGER, Role.SCHOOL_ADMIN, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Reject an APPROVED payroll run' })
+  rejectPayrollRun(@Param('id') id: string) {
+    return this.finance.rejectPayrollRun(id)
   }
 
   @Get('payroll-runs/:id/slips/:staffId')

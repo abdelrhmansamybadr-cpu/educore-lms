@@ -9,6 +9,113 @@ import {
   ChevronRight, ChevronLeft, GraduationCap, Layers,
 } from 'lucide-react'
 
+// ─── Step-3 types ─────────────────────────────────────────────────────────────
+interface GradeEntry {
+  name: string; nameAr: string; order: number
+  sections: number   // 0 = no lettered sections; 1–6 = A,B,C…
+  selected: boolean
+}
+interface DeptEntry { name: string; nameAr: string; selected: boolean }
+interface SchoolStructure { grades: GradeEntry[]; depts: DeptEntry[] }
+
+// ─── Grade presets by curriculum ──────────────────────────────────────────────
+const GRADE_PRESETS: Record<string, Omit<GradeEntry, 'selected'>[]> = {
+  AMERICAN: [
+    { name: 'Kindergarten', nameAr: 'روضة', order: 0, sections: 2 },
+    ...Array.from({ length: 12 }, (_, i) => ({ name: `Grade ${i + 1}`, nameAr: `الصف ${['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر','الحادي عشر','الثاني عشر'][i]}`, order: i + 1, sections: 2 })),
+  ],
+  BRITISH: Array.from({ length: 13 }, (_, i) => ({ name: `Year ${i + 1}`, nameAr: `السنة ${['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة','العاشرة','الحادية عشرة','الثانية عشرة','الثالثة عشرة'][i]}`, order: i + 1, sections: 2 })),
+  IB: [
+    ...Array.from({ length: 6 }, (_, i) => ({ name: `PYP Year ${i + 1}`, nameAr: `PYP سنة ${i + 1}`, order: i + 1, sections: 2 })),
+    ...Array.from({ length: 5 }, (_, i) => ({ name: `MYP Year ${i + 1}`, nameAr: `MYP سنة ${i + 1}`, order: i + 7, sections: 2 })),
+    { name: 'DP Year 1', nameAr: 'DP سنة 1', order: 12, sections: 1 },
+    { name: 'DP Year 2', nameAr: 'DP سنة 2', order: 13, sections: 1 },
+  ],
+  EGYPTIAN: [
+    { name: 'Grade 1 Primary', nameAr: 'الصف الأول الابتدائي', order: 1, sections: 3 },
+    { name: 'Grade 2 Primary', nameAr: 'الصف الثاني الابتدائي', order: 2, sections: 3 },
+    { name: 'Grade 3 Primary', nameAr: 'الصف الثالث الابتدائي', order: 3, sections: 3 },
+    { name: 'Grade 4 Primary', nameAr: 'الصف الرابع الابتدائي', order: 4, sections: 3 },
+    { name: 'Grade 5 Primary', nameAr: 'الصف الخامس الابتدائي', order: 5, sections: 3 },
+    { name: 'Grade 6 Primary', nameAr: 'الصف السادس الابتدائي', order: 6, sections: 3 },
+    { name: 'Grade 1 Preparatory', nameAr: 'الصف الأول الإعدادي', order: 7, sections: 3 },
+    { name: 'Grade 2 Preparatory', nameAr: 'الصف الثاني الإعدادي', order: 8, sections: 3 },
+    { name: 'Grade 3 Preparatory', nameAr: 'الصف الثالث الإعدادي', order: 9, sections: 3 },
+    { name: 'Grade 1 Secondary', nameAr: 'الصف الأول الثانوي', order: 10, sections: 3 },
+    { name: 'Grade 2 Secondary', nameAr: 'الصف الثاني الثانوي', order: 11, sections: 3 },
+    { name: 'Grade 3 Secondary', nameAr: 'الصف الثالث الثانوي', order: 12, sections: 3 },
+  ],
+}
+GRADE_PRESETS.SAUDI = GRADE_PRESETS.EGYPTIAN
+GRADE_PRESETS.NATIONAL = Array.from({ length: 12 }, (_, i) => ({ name: `Grade ${i + 1}`, nameAr: `الصف ${i + 1}`, order: i + 1, sections: 2 }))
+GRADE_PRESETS.CUSTOM = GRADE_PRESETS.NATIONAL
+GRADE_PRESETS.MIXED = GRADE_PRESETS.NATIONAL
+
+// ─── Department presets ────────────────────────────────────────────────────────
+const DEPT_COMMON: DeptEntry[] = [
+  { name: 'Mathematics', nameAr: 'الرياضيات', selected: true },
+  { name: 'Science', nameAr: 'العلوم', selected: true },
+  { name: 'Arabic Language', nameAr: 'اللغة العربية', selected: true },
+  { name: 'English Language', nameAr: 'اللغة الإنجليزية', selected: true },
+  { name: 'Social Studies', nameAr: 'الدراسات الاجتماعية', selected: true },
+  { name: 'Islamic Studies', nameAr: 'التربية الإسلامية', selected: true },
+  { name: 'Physical Education', nameAr: 'التربية الرياضية', selected: true },
+  { name: 'Art & Design', nameAr: 'الفنون والتصميم', selected: false },
+  { name: 'Computer Science', nameAr: 'علوم الحاسوب', selected: false },
+  { name: 'Music', nameAr: 'الموسيقى', selected: false },
+]
+const DEPT_EXTRAS: Record<string, DeptEntry[]> = {
+  BRITISH: [
+    { name: 'History', nameAr: 'التاريخ', selected: true },
+    { name: 'Geography', nameAr: 'الجغرافيا', selected: true },
+    { name: 'Chemistry', nameAr: 'الكيمياء', selected: true },
+    { name: 'Physics', nameAr: 'الفيزياء', selected: true },
+    { name: 'Biology', nameAr: 'الأحياء', selected: true },
+    { name: 'Business Studies', nameAr: 'إدارة الأعمال', selected: false },
+    { name: 'Economics', nameAr: 'الاقتصاد', selected: false },
+  ],
+  AMERICAN: [
+    { name: 'History', nameAr: 'التاريخ', selected: true },
+    { name: 'Government & Politics', nameAr: 'الحكومة والسياسة', selected: false },
+    { name: 'Economics', nameAr: 'الاقتصاد', selected: false },
+    { name: 'AP Programs', nameAr: 'البرامج المتقدمة', selected: false },
+  ],
+  IB: [
+    { name: 'Individuals & Societies', nameAr: 'الأفراد والمجتمعات', selected: true },
+    { name: 'Language Acquisition', nameAr: 'اكتساب اللغة', selected: true },
+    { name: 'Philosophy', nameAr: 'الفلسفة', selected: false },
+    { name: 'Theory of Knowledge', nameAr: 'نظرية المعرفة', selected: true },
+  ],
+}
+
+function buildDefaultStructure(curriculum: string): SchoolStructure {
+  const gradePreset = GRADE_PRESETS[curriculum] ?? GRADE_PRESETS.CUSTOM
+  const grades: GradeEntry[] = gradePreset.map((g) => ({ ...g, selected: true }))
+  const depts: DeptEntry[] = [
+    ...DEPT_COMMON,
+    ...(DEPT_EXTRAS[curriculum] ?? []),
+  ]
+  return { grades, depts }
+}
+
+// Section letters helper
+function expandGrades(grades: GradeEntry[]): { name: string; nameAr: string; order: number }[] {
+  const LETTERS = 'ABCDEF'
+  const result: { name: string; nameAr: string; order: number }[] = []
+  let order = 0
+  for (const g of grades) {
+    if (!g.selected) continue
+    if (g.sections <= 1) {
+      result.push({ name: g.name, nameAr: g.nameAr, order: order++ })
+    } else {
+      for (let s = 0; s < g.sections; s++) {
+        result.push({ name: `${g.name}${LETTERS[s]}`, nameAr: `${g.nameAr}${LETTERS[s]}`, order: order++ })
+      }
+    }
+  }
+  return result
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface WizardData {
   // Step 1 — Organization
@@ -27,13 +134,14 @@ interface WizardData {
   schoolAddress: string
   schoolWebsite: string
   timezone: string
-  curriculumType: string
+  curriculumTypes: string[]   // multi-select; API receives effectiveCurriculumType()
   language: string
   currency: string
   numberOfStudents: string
-  // Step 3 — Structure
-  gradeLevels: { name: string; nameAr: string; order: number }[]
-  departments: { name: string; nameAr: string }[]
+  // Per-curriculum school names (one entry per selected curriculum)
+  schoolEntries: { curriculum: string; name: string; nameAr: string }[]
+  // Step 3 — Per-school academic structure (keyed by curriculum type)
+  structureBySchool: Record<string, SchoolStructure>
   // Step 4 — Academic year
   yearName: string
   yearStart: string
@@ -102,12 +210,6 @@ const CURRICULUM_DEFAULT_MODULES: Record<string, string[]> = {
   NATIONAL: ['FINANCE','LIBRARY','HEALTH','TRANSPORT','CANTEEN','EVENTS','TICKETS','DEVICES','HR','ADMISSION','GAMIFICATION','LIVE_CLASSES','MENTAL_HEALTH'],
 }
 
-const DEFAULT_GRADE_LEVELS_BY_CURRICULUM: Record<string, { name: string; nameAr: string }[]> = {
-  BRITISH:  [{ name:'Year 1',nameAr:'السنة الأولى' },{ name:'Year 2',nameAr:'السنة الثانية' },{ name:'Year 3',nameAr:'السنة الثالثة' },{ name:'Year 4',nameAr:'السنة الرابعة' },{ name:'Year 5',nameAr:'السنة الخامسة' },{ name:'Year 6',nameAr:'السنة السادسة' },{ name:'Year 7',nameAr:'السنة السابعة' },{ name:'Year 8',nameAr:'السنة الثامنة' },{ name:'Year 9',nameAr:'السنة التاسعة' },{ name:'Year 10',nameAr:'السنة العاشرة' },{ name:'Year 11',nameAr:'السنة الحادية عشرة' },{ name:'Year 12',nameAr:'السنة الثانية عشرة' },{ name:'Year 13',nameAr:'السنة الثالثة عشرة' }],
-  AMERICAN: [{ name:'Grade 1',nameAr:'الصف الأول' },{ name:'Grade 2',nameAr:'الصف الثاني' },{ name:'Grade 3',nameAr:'الصف الثالث' },{ name:'Grade 4',nameAr:'الصف الرابع' },{ name:'Grade 5',nameAr:'الصف الخامس' },{ name:'Grade 6',nameAr:'الصف السادس' },{ name:'Grade 7',nameAr:'الصف السابع' },{ name:'Grade 8',nameAr:'الصف الثامن' },{ name:'Grade 9',nameAr:'الصف التاسع' },{ name:'Grade 10',nameAr:'الصف العاشر' },{ name:'Grade 11',nameAr:'الصف الحادي عشر' },{ name:'Grade 12',nameAr:'الصف الثاني عشر' }],
-  EGYPTIAN: [{ name:'الصف الأول الابتدائي',nameAr:'الصف الأول الابتدائي' },{ name:'الصف الثاني الابتدائي',nameAr:'الصف الثاني الابتدائي' },{ name:'الصف الثالث الابتدائي',nameAr:'الصف الثالث الابتدائي' },{ name:'الصف الرابع الابتدائي',nameAr:'الصف الرابع الابتدائي' },{ name:'الصف الخامس الابتدائي',nameAr:'الصف الخامس الابتدائي' },{ name:'الصف السادس الابتدائي',nameAr:'الصف السادس الابتدائي' },{ name:'الصف الأول الإعدادي',nameAr:'الصف الأول الإعدادي' },{ name:'الصف الثاني الإعدادي',nameAr:'الصف الثاني الإعدادي' },{ name:'الصف الثالث الإعدادي',nameAr:'الصف الثالث الإعدادي' },{ name:'الصف الأول الثانوي',nameAr:'الصف الأول الثانوي' },{ name:'الصف الثاني الثانوي',nameAr:'الصف الثاني الثانوي' },{ name:'الصف الثالث الثانوي',nameAr:'الصف الثالث الثانوي' }],
-  IB:       [{ name:'PYP Year 1',nameAr:'PYP سنة 1' },{ name:'PYP Year 2',nameAr:'PYP سنة 2' },{ name:'PYP Year 3',nameAr:'PYP سنة 3' },{ name:'PYP Year 4',nameAr:'PYP سنة 4' },{ name:'PYP Year 5',nameAr:'PYP سنة 5' },{ name:'PYP Year 6',nameAr:'PYP سنة 6' },{ name:'MYP Year 1',nameAr:'MYP سنة 1' },{ name:'MYP Year 2',nameAr:'MYP سنة 2' },{ name:'MYP Year 3',nameAr:'MYP سنة 3' },{ name:'MYP Year 4',nameAr:'MYP سنة 4' },{ name:'MYP Year 5',nameAr:'MYP سنة 5' },{ name:'DP Year 1',nameAr:'DP سنة 1' },{ name:'DP Year 2',nameAr:'DP سنة 2' }],
-}
 
 function inputCls(error?: boolean) {
   return `w-full border ${error ? 'border-red-400' : 'border-gray-200'} rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white`
@@ -122,12 +224,14 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
-  const [schoolId, setSchoolId] = useState('')
+  const [schoolId, setSchoolId] = useState('')      // primary school (first created)
+  const [schoolMapping, setSchoolMapping] = useState<Record<string, string>>({}) // curriculum → schoolId
 
   const [data, setData] = useState<WizardData>({
     orgName: '', ownerEmail: '', ownerPassword: '', ownerFirstName: '', ownerLastName: '', countryCode: 'SA',
-    schoolName: '', schoolNameAr: '', schoolEmail: '', schoolPhone: '', schoolCity: '', schoolAddress: '', schoolWebsite: '', timezone: 'Asia/Riyadh', curriculumType: 'CUSTOM', language: 'BILINGUAL', currency: 'USD', numberOfStudents: '500',
-    gradeLevels: [], departments: [{ name: 'General', nameAr: 'عام' }],
+    schoolName: '', schoolNameAr: '', schoolEmail: '', schoolPhone: '', schoolCity: '', schoolAddress: '', schoolWebsite: '', timezone: 'Asia/Riyadh', curriculumTypes: ['CUSTOM'], language: 'BILINGUAL', currency: 'USD', numberOfStudents: '500',
+    schoolEntries: [{ curriculum: 'CUSTOM', name: '', nameAr: '' }],
+    structureBySchool: { CUSTOM: buildDefaultStructure('CUSTOM') },
     yearName: '2025-2026', yearStart: '2025-09-01', yearEnd: '2026-06-30', termCount: '3',
     enabledModules: CURRICULUM_DEFAULT_MODULES.CUSTOM,
     adminEmail: '', adminPassword: '', adminFirstName: '', adminLastName: '',
@@ -135,11 +239,41 @@ export default function OnboardingPage() {
 
   const set = (field: keyof WizardData, value: any) => setData((d) => ({ ...d, [field]: value }))
 
-  const onCurriculumChange = (curriculum: string) => {
-    set('curriculumType', curriculum)
-    const defaults = DEFAULT_GRADE_LEVELS_BY_CURRICULUM[curriculum]
-    if (defaults) set('gradeLevels', defaults.map((g, i) => ({ ...g, order: i + 1 })))
-    set('enabledModules', CURRICULUM_DEFAULT_MODULES[curriculum] ?? CURRICULUM_DEFAULT_MODULES.CUSTOM)
+  // Derive single curriculumType for the API: 1 selected → that type, multiple → MIXED
+  const effectiveCurriculumType = (types: string[]) => types.length === 1 ? types[0] : 'MIXED'
+
+  // Union of all selected curricula's default modules
+  const effectiveModules = (types: string[]) => {
+    const all = new Set<string>()
+    types.forEach((t) => (CURRICULUM_DEFAULT_MODULES[t] ?? CURRICULUM_DEFAULT_MODULES.CUSTOM).forEach((m) => all.add(m)))
+    return Array.from(all)
+  }
+
+  const onCurriculumToggle = (curriculum: string) => {
+    setData((d) => {
+      const already = d.curriculumTypes.includes(curriculum)
+      const next = already
+        ? d.curriculumTypes.filter((t) => t !== curriculum)
+        : [...d.curriculumTypes, curriculum]
+      const safeTypes = next.length === 0 ? ['CUSTOM'] : next
+      // Keep existing names for retained curricula, add blank entry for new ones
+      const schoolEntries = safeTypes.map((t) => {
+        const existing = d.schoolEntries.find((e) => e.curriculum === t)
+        return existing ?? { curriculum: t, name: '', nameAr: '' }
+      })
+      // Build structureBySchool — keep existing for retained curricula, build default for new ones
+      const structureBySchool: Record<string, SchoolStructure> = {}
+      for (const t of safeTypes) {
+        structureBySchool[t] = d.structureBySchool[t] ?? buildDefaultStructure(t)
+      }
+      return {
+        ...d,
+        curriculumTypes: safeTypes,
+        schoolEntries,
+        structureBySchool,
+        enabledModules: effectiveModules(safeTypes),
+      }
+    })
   }
 
   const next = async () => {
@@ -151,22 +285,45 @@ export default function OnboardingPage() {
           orgName: data.orgName, ownerEmail: data.ownerEmail, ownerPassword: data.ownerPassword,
           ownerFirstName: data.ownerFirstName, ownerLastName: data.ownerLastName, countryCode: data.countryCode,
         })
-        setOrgId(res.data.organization.id)
+        const resData = res.data?.data ?? res.data
+        setOrgId(resData.organization.id)
       } else if (step === 2) {
-        const res = await api.post('/onboarding/school', {
+        // Create one school per selected curriculum
+        const commonFields = {
           organizationId: orgId,
-          name: data.schoolName, nameAr: data.schoolNameAr, email: data.schoolEmail,
-          phone: data.schoolPhone, city: data.schoolCity, address: data.schoolAddress,
-          website: data.schoolWebsite, timezone: data.timezone, countryCode: data.countryCode,
-          curriculumType: data.curriculumType, language: data.language, currency: data.currency,
+          email: data.schoolEmail, phone: data.schoolPhone, city: data.schoolCity,
+          address: data.schoolAddress, website: data.schoolWebsite,
+          timezone: data.timezone, countryCode: data.countryCode,
+          language: data.language, currency: data.currency,
           numberOfStudents: parseInt(data.numberOfStudents) || 0,
-        })
-        setSchoolId(res.data.id)
+        }
+        const createdIds: string[] = []
+        const mapping: Record<string, string> = {}
+        for (const entry of data.schoolEntries) {
+          const res = await api.post('/onboarding/school', {
+            ...commonFields,
+            name: entry.name || data.schoolName || entry.curriculum,
+            nameAr: entry.nameAr || data.schoolNameAr || entry.curriculum,
+            curriculumType: entry.curriculum,
+          })
+          const schoolData = res.data?.data ?? res.data
+          createdIds.push(schoolData.id)
+          mapping[entry.curriculum] = schoolData.id
+        }
+        setSchoolMapping(mapping)
+        setSchoolId(createdIds[0])   // primary school for subsequent steps
       } else if (step === 3) {
-        await api.post(`/onboarding/school/${schoolId}/structure`, {
-          gradeLevels: data.gradeLevels,
-          departments: data.departments,
-        })
+        // Post structure for each school
+        for (const [curriculum, structure] of Object.entries(data.structureBySchool)) {
+          const sid = schoolMapping[curriculum] ?? schoolId
+          if (!sid) continue
+          await api.post(`/onboarding/school/${sid}/structure`, {
+            gradeLevels: expandGrades(structure.grades),
+            departments: structure.depts
+              .filter((d) => d.selected)
+              .map((d) => ({ name: d.name, nameAr: d.nameAr })),
+          })
+        }
       } else if (step === 4) {
         const termCount = parseInt(data.termCount) || 3
         const terms = Array.from({ length: termCount }, (_, i) => ({
@@ -178,7 +335,7 @@ export default function OnboardingPage() {
         })
       } else if (step === 5) {
         await api.post(`/onboarding/school/${schoolId}/curriculum`, {
-          curriculumType: data.curriculumType, enabledModules: data.enabledModules,
+          curriculumType: effectiveCurriculumType(data.curriculumTypes), enabledModules: data.enabledModules,
         })
       } else if (step === 6) {
         await api.post(`/onboarding/school/${schoolId}/complete`, {
@@ -244,7 +401,7 @@ export default function OnboardingPage() {
           )}
 
           {step === 1 && <Step1 data={data} set={set} isRtl={isRtl} />}
-          {step === 2 && <Step2 data={data} set={set} isRtl={isRtl} onCurriculumChange={onCurriculumChange} />}
+          {step === 2 && <Step2 data={data} set={set} isRtl={isRtl} onCurriculumToggle={onCurriculumToggle} />}
           {step === 3 && <Step3 data={data} set={set} isRtl={isRtl} />}
           {step === 4 && <Step4 data={data} set={set} isRtl={isRtl} />}
           {step === 5 && <Step5 data={data} set={set} isRtl={isRtl} />}
@@ -327,7 +484,7 @@ function Step1({ data, set, isRtl }: any) {
   )
 }
 
-function Step2({ data, set, isRtl, onCurriculumChange }: any) {
+function Step2({ data, set, isRtl, onCurriculumToggle }: any) {
   return (
     <div className="space-y-6">
       <div>
@@ -335,33 +492,89 @@ function Step2({ data, set, isRtl, onCurriculumChange }: any) {
         <p className="text-gray-500 text-sm mt-1">{isRtl ? 'أدخل معلومات المدرسة الأساسية' : 'Enter your school\'s basic information'}</p>
       </div>
 
-      {/* Curriculum selector — most important choice */}
+      {/* Curriculum selector — multi-select */}
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-3">{isRtl ? 'نوع المناهج الدراسية *' : 'Curriculum Type *'}</label>
+        <label className="block text-sm font-semibold text-gray-800 mb-1">{isRtl ? 'نوع المناهج الدراسية *' : 'Curriculum Type *'}</label>
+        <p className="text-xs text-gray-500 mb-3">{isRtl ? 'يمكنك اختيار أكثر من نوع' : 'You can select multiple curricula'}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {CURRICULUM_TYPES.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => onCurriculumChange(c.value)}
-              className={`p-3 rounded-xl border-2 text-left transition-all ${data.curriculumType === c.value ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
-            >
-              <p className={`text-sm font-semibold ${data.curriculumType === c.value ? 'text-primary-700' : 'text-gray-900'}`}>{isRtl ? c.labelAr : c.label}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>
-            </button>
-          ))}
+          {CURRICULUM_TYPES.map((c) => {
+            const selected = data.curriculumTypes.includes(c.value)
+            return (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => onCurriculumToggle(c.value)}
+                className={`relative p-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
+              >
+                {selected && (
+                  <span className="absolute top-2 right-2 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+                <p className={`text-sm font-semibold pr-5 ${selected ? 'text-primary-700' : 'text-gray-900'}`}>{isRtl ? c.labelAr : c.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>
+              </button>
+            )
+          })}
         </div>
+        {data.curriculumTypes.length > 1 && (
+          <p className="mt-2 text-xs text-primary-600 font-medium">
+            {isRtl ? `تم اختيار ${data.curriculumTypes.length} مناهج — سيتم إنشاء مدرسة لكل منهج` : `${data.curriculumTypes.length} curricula selected — one school will be created per curriculum`}
+          </p>
+        )}
       </div>
 
+      {/* Per-curriculum school names (shown when multiple curricula selected) */}
+      {data.curriculumTypes.length > 1 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-blue-800">
+            {isRtl ? 'اسم كل مدرسة *' : 'Name each school *'}
+          </p>
+          {data.schoolEntries.map((entry: { curriculum: string; name: string; nameAr: string }, i: number) => (
+            <div key={entry.curriculum} className="flex items-center gap-3">
+              <span className="text-xs font-bold text-blue-700 w-20 shrink-0">{entry.curriculum}</span>
+              <input
+                placeholder={isRtl ? 'الاسم بالإنجليزية' : 'School name (EN)'}
+                value={entry.name}
+                onChange={(e) => {
+                  const next = [...data.schoolEntries]
+                  next[i] = { ...entry, name: e.target.value }
+                  set('schoolEntries', next)
+                }}
+                className="flex-1 border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white"
+              />
+              <input
+                dir="rtl"
+                placeholder="الاسم بالعربية"
+                value={entry.nameAr}
+                onChange={(e) => {
+                  const next = [...data.schoolEntries]
+                  next[i] = { ...entry, nameAr: e.target.value }
+                  set('schoolEntries', next)
+                }}
+                className="flex-1 border border-blue-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 bg-white"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-700 mb-1">{isRtl ? 'اسم المدرسة (إنجليزي) *' : 'School Name (English) *'}</label>
-          <input value={data.schoolName} onChange={(e) => set('schoolName', e.target.value)} placeholder="e.g. Al-Nour International School" className={inputCls()} />
-        </div>
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-700 mb-1">{isRtl ? 'اسم المدرسة (عربي)' : 'School Name (Arabic)'}</label>
-          <input dir="rtl" value={data.schoolNameAr} onChange={(e) => set('schoolNameAr', e.target.value)} placeholder="مدرسة النور الدولية" className={inputCls()} />
-        </div>
+        {/* Single-curriculum name fields — hidden when multiple curricula have per-entry names */}
+        {data.curriculumTypes.length === 1 && (
+          <>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">{isRtl ? 'اسم المدرسة (إنجليزي) *' : 'School Name (English) *'}</label>
+              <input value={data.schoolName} onChange={(e) => set('schoolName', e.target.value)} placeholder="e.g. Al-Nour International School" className={inputCls()} />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">{isRtl ? 'اسم المدرسة (عربي)' : 'School Name (Arabic)'}</label>
+              <input dir="rtl" value={data.schoolNameAr} onChange={(e) => set('schoolNameAr', e.target.value)} placeholder="مدرسة النور الدولية" className={inputCls()} />
+            </div>
+          </>
+        )}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">{isRtl ? 'البريد الإلكتروني *' : 'School Email *'}</label>
           <input type="email" value={data.schoolEmail} onChange={(e) => set('schoolEmail', e.target.value)} className={inputCls()} />
@@ -415,49 +628,206 @@ function Step2({ data, set, isRtl, onCurriculumChange }: any) {
 }
 
 function Step3({ data, set, isRtl }: any) {
-  const addLevel = () => set('gradeLevels', [...data.gradeLevels, { name: '', nameAr: '', order: data.gradeLevels.length + 1 }])
-  const removeLevel = (i: number) => set('gradeLevels', data.gradeLevels.filter((_: any, idx: number) => idx !== i))
-  const addDept = () => set('departments', [...data.departments, { name: '', nameAr: '' }])
-  const removeDept = (i: number) => set('departments', data.departments.filter((_: any, idx: number) => idx !== i))
+  const [activeTab, setActiveTab] = useState<string>(data.curriculumTypes[0] ?? 'CUSTOM')
+  const [customDeptEn, setCustomDeptEn] = useState('')
+  const [customDeptAr, setCustomDeptAr] = useState('')
+
+  // Ensure activeTab is valid when curricula change
+  const validTab = data.curriculumTypes.includes(activeTab) ? activeTab : (data.curriculumTypes[0] ?? 'CUSTOM')
+
+  const updateStructure = (curriculum: string, updater: (s: SchoolStructure) => SchoolStructure) => {
+    set('structureBySchool', {
+      ...data.structureBySchool,
+      [curriculum]: updater(data.structureBySchool[curriculum] ?? buildDefaultStructure(curriculum)),
+    })
+  }
+
+  const toggleGrade = (curriculum: string, idx: number) => {
+    updateStructure(curriculum, (s) => ({
+      ...s,
+      grades: s.grades.map((g, i) => i === idx ? { ...g, selected: !g.selected } : g),
+    }))
+  }
+
+  const setSections = (curriculum: string, idx: number, sections: number) => {
+    updateStructure(curriculum, (s) => ({
+      ...s,
+      grades: s.grades.map((g, i) => i === idx ? { ...g, sections } : g),
+    }))
+  }
+
+  const toggleDept = (curriculum: string, idx: number) => {
+    updateStructure(curriculum, (s) => ({
+      ...s,
+      depts: s.depts.map((d, i) => i === idx ? { ...d, selected: !d.selected } : d),
+    }))
+  }
+
+  const addCustomDept = (curriculum: string) => {
+    const name = customDeptEn.trim()
+    const nameAr = customDeptAr.trim()
+    if (!name) return
+    updateStructure(curriculum, (s) => ({
+      ...s,
+      depts: [...s.depts, { name, nameAr: nameAr || name, selected: true }],
+    }))
+    setCustomDeptEn('')
+    setCustomDeptAr('')
+  }
+
+  const structure: SchoolStructure = data.structureBySchool[validTab] ?? buildDefaultStructure(validTab)
+  const preview = expandGrades(structure.grades)
+  const selectedDepts = structure.depts.filter((d) => d.selected)
+
+  // Curriculum display labels
+  const currLabel = (c: string) => CURRICULUM_TYPES.find((t) => t.value === c)?.[isRtl ? 'labelAr' : 'label'] ?? c
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{isRtl ? 'الهيكل الأكاديمي' : 'Academic Structure'}</h1>
-        <p className="text-gray-500 text-sm mt-1">{isRtl ? 'تم ملء المراحل الدراسية تلقائياً بناءً على المناهج' : 'Grade levels pre-filled based on your curriculum — customize as needed'}</p>
+        <p className="text-gray-500 text-sm mt-1">
+          {isRtl
+            ? 'تم ملء المراحل الدراسية تلقائياً بناءً على المنهج — خصّص حسب الحاجة'
+            : 'Grade levels pre-filled based on your curriculum — toggle to include/exclude, set sections per grade'}
+        </p>
       </div>
 
-      {/* Grade Levels */}
+      {/* School tabs — only when multiple curricula */}
+      {data.curriculumTypes.length > 1 && (
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+          {data.curriculumTypes.map((c: string) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setActiveTab(c)}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                validTab === c
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {currLabel(c)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Grade Levels — chip grid */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="text-sm font-semibold text-gray-800">{isRtl ? 'المراحل الدراسية' : 'Grade Levels'}</label>
-          <button type="button" onClick={addLevel} className="text-xs text-primary-600 font-medium hover:underline">+ Add</button>
+          <label className="text-sm font-semibold text-gray-800">
+            {isRtl ? 'المراحل الدراسية' : 'Grade Levels'}
+          </label>
+          <span className="text-xs text-gray-400">
+            {isRtl
+              ? `${structure.grades.filter((g) => g.selected).length} مرحلة — ${preview.length} فصل`
+              : `${structure.grades.filter((g) => g.selected).length} grades → ${preview.length} classes`}
+          </span>
         </div>
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {data.gradeLevels.map((g: any, i: number) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input value={g.name} onChange={(e) => { const l = [...data.gradeLevels]; l[i] = { ...l[i], name: e.target.value }; set('gradeLevels', l) }} placeholder="Grade name (EN)" className={inputCls()} />
-              <input dir="rtl" value={g.nameAr} onChange={(e) => { const l = [...data.gradeLevels]; l[i] = { ...l[i], nameAr: e.target.value }; set('gradeLevels', l) }} placeholder="الاسم" className={`${inputCls()} w-32`} />
-              <button type="button" onClick={() => removeLevel(i)} className="text-red-400 hover:text-red-600 shrink-0 text-xs">✕</button>
+        <div className="flex flex-wrap gap-2">
+          {structure.grades.map((g, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-1.5 rounded-full border-2 pl-3 pr-1 py-1 transition-all ${
+                g.selected
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-gray-200 bg-gray-50 opacity-50'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => toggleGrade(validTab, i)}
+                className={`text-xs font-medium leading-none ${g.selected ? 'text-primary-700' : 'text-gray-500'}`}
+              >
+                {isRtl ? g.nameAr : g.name}
+              </button>
+              {g.selected && (
+                <select
+                  value={g.sections}
+                  onChange={(e) => setSections(validTab, i, +e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[10px] border border-primary-300 rounded-full px-1 py-0.5 bg-white text-primary-700 outline-none cursor-pointer"
+                >
+                  <option value={1}>{isRtl ? 'بدون' : 'No sec.'}</option>
+                  <option value={2}>A, B</option>
+                  <option value={3}>A, B, C</option>
+                  <option value={4}>A – D</option>
+                  <option value={5}>A – E</option>
+                  <option value={6}>A – F</option>
+                </select>
+              )}
             </div>
           ))}
         </div>
+
+        {/* Preview */}
+        {preview.length > 0 && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
+              {isRtl ? 'معاينة الفصول الدراسية' : 'Class preview'}
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {preview.map((p, i) => (
+                <span key={i} className="text-[10px] px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600">
+                  {isRtl ? p.nameAr : p.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Departments */}
+      {/* Departments — chip grid */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="text-sm font-semibold text-gray-800">{isRtl ? 'الأقسام الأكاديمية' : 'Departments'}</label>
-          <button type="button" onClick={addDept} className="text-xs text-primary-600 font-medium hover:underline">+ Add</button>
+          <label className="text-sm font-semibold text-gray-800">
+            {isRtl ? 'الأقسام الأكاديمية' : 'Departments'}
+          </label>
+          <span className="text-xs text-gray-400">
+            {selectedDepts.length} {isRtl ? 'قسم مختار' : 'selected'}
+          </span>
         </div>
-        <div className="space-y-2">
-          {data.departments.map((d: any, i: number) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input value={d.name} onChange={(e) => { const arr = [...data.departments]; arr[i] = { ...arr[i], name: e.target.value }; set('departments', arr) }} placeholder="Department name (EN)" className={inputCls()} />
-              <input dir="rtl" value={d.nameAr} onChange={(e) => { const arr = [...data.departments]; arr[i] = { ...arr[i], nameAr: e.target.value }; set('departments', arr) }} placeholder="اسم القسم" className={`${inputCls()} w-32`} />
-              <button type="button" onClick={() => removeDept(i)} className="text-red-400 hover:text-red-600 shrink-0 text-xs">✕</button>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          {structure.depts.map((d, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => toggleDept(validTab, i)}
+              className={`px-3 py-1.5 rounded-full border-2 text-xs font-medium transition-all ${
+                d.selected
+                  ? 'border-primary-500 bg-primary-50 text-primary-700'
+                  : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
+              }`}
+            >
+              {isRtl ? d.nameAr : d.name}
+            </button>
           ))}
+        </div>
+
+        {/* Custom department add */}
+        <div className="mt-3 flex gap-2 items-center">
+          <input
+            value={customDeptEn}
+            onChange={(e) => setCustomDeptEn(e.target.value)}
+            placeholder={isRtl ? 'اسم القسم (EN)' : 'Custom dept name (EN)'}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary-400 bg-white"
+          />
+          <input
+            dir="rtl"
+            value={customDeptAr}
+            onChange={(e) => setCustomDeptAr(e.target.value)}
+            placeholder="اسم القسم (AR)"
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary-400 bg-white"
+          />
+          <button
+            type="button"
+            onClick={() => addCustomDept(validTab)}
+            disabled={!customDeptEn.trim()}
+            className="text-xs px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 whitespace-nowrap"
+          >
+            {isRtl ? '+ إضافة' : '+ Add'}
+          </button>
         </div>
       </div>
     </div>
@@ -560,9 +930,10 @@ function Step6({ data, set, isRtl }: any) {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p className="text-xs text-blue-700 font-medium">{isRtl ? 'ملخص الإعداد' : 'Setup Summary'}</p>
         <ul className="mt-2 space-y-1 text-xs text-blue-600">
-          <li>🏫 {isRtl ? 'المدرسة:' : 'School:'} {data.schoolName || '—'}</li>
-          <li>📚 {isRtl ? 'المناهج:' : 'Curriculum:'} {data.curriculumType}</li>
-          <li>🎓 {isRtl ? 'المراحل الدراسية:' : 'Grade levels:'} {data.gradeLevels.length}</li>
+          <li>🏫 {isRtl ? 'المدارس:' : 'Schools:'} {data.schoolEntries.map((e: any) => e.name || e.curriculum).join(', ') || '—'}</li>
+          <li>📚 {isRtl ? 'المناهج:' : 'Curricula:'} {data.curriculumTypes.join(', ')}</li>
+          <li>🎓 {isRtl ? 'الفصول الدراسية:' : 'Classes:'} {Object.values(data.structureBySchool as Record<string, SchoolStructure>).reduce((sum, s) => sum + expandGrades(s.grades).length, 0)}</li>
+          <li>🏢 {isRtl ? 'الأقسام:' : 'Departments:'} {Object.values(data.structureBySchool as Record<string, SchoolStructure>).reduce((sum, s) => sum + s.depts.filter((d) => d.selected).length, 0)}</li>
           <li>🧩 {isRtl ? 'الوحدات المفعلة:' : 'Modules enabled:'} {data.enabledModules.length}</li>
         </ul>
       </div>

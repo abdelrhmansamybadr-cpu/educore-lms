@@ -238,6 +238,7 @@ model Organization {
   email       String    @unique
   phone       String?
   countryCode String    @default("US")
+  currency    Currency  @default(USD)
   plan        OrgPlan   @default(STARTER)
   isActive    Boolean   @default(true)
   trialEndsAt DateTime?
@@ -385,6 +386,7 @@ model School {
   itAssets            ItAsset[]            @relation("SchoolItAssets")
   itComplaints        ItComplaint[]        @relation("SchoolItComplaints")
   advancePayments     AdvancePayment[]
+  salaryBatches       SalaryBatch[]        @relation("SchoolSalaryBatches")
 }
 
 model SchoolSettings {
@@ -1479,8 +1481,8 @@ model StaffProfile {
   id              String    @id @default(cuid())
   userId          String    @unique
   user            User      @relation("StaffProfile", fields: [userId], references: [id], onDelete: Cascade)
-  schoolId        String
-  school          School    @relation("StaffProfiles", fields: [schoolId], references: [id])
+  schoolId        String?   // null = company-level (org staff not assigned to a school)
+  school          School?   @relation("StaffProfiles", fields: [schoolId], references: [id])
   employeeId      String?   // HR employee code
   department      String?
   jobTitle        String?
@@ -1504,6 +1506,7 @@ model StaffProfile {
   documents       HrDocument[]         @relation("StaffDocuments")
   payslips        PayslipRecord[]      @relation("StaffPayslips")
   loans           StaffLoan[]          @relation("StaffLoans")
+  salaryLines     SalaryBatchLine[]    @relation("StaffSalaryLines")
 
   @@index([schoolId])
 }
@@ -2970,4 +2973,84 @@ model CostCenter {
 
   @@unique([orgId, code])
   @@index([orgId])
+}
+
+// ── Salary Workflow ────────────────────────────────────────────────────────
+
+enum SalaryBatchStatus {
+  DRAFT
+  SUBMITTED
+  FINANCE_REJECTED
+  OWNER_PENDING
+  OWNER_APPROVED
+  OWNER_REJECTED
+  IN_PAYMENT
+  PAID
+  CLOSED
+}
+
+model SalaryBatch {
+  id                  String            @id @default(cuid())
+  orgId               String
+  schoolId            String?           // null = company-level batch (org staff)
+  school              School?           @relation("SchoolSalaryBatches", fields: [schoolId], references: [id])
+  month               Int
+  year                Int
+  status              SalaryBatchStatus @default(DRAFT)
+
+  lines               SalaryBatchLine[]
+
+  totalBaseSalary     Decimal           @default(0) @db.Decimal(18, 2)
+  totalBonus          Decimal           @default(0) @db.Decimal(18, 2)
+  totalDeductions     Decimal           @default(0) @db.Decimal(18, 2)
+  totalNet            Decimal           @default(0) @db.Decimal(18, 2)
+
+  // HR
+  preparedById        String
+  submittedAt         DateTime?
+  submissionNote      String?
+
+  // Finance review
+  financeReviewedById String?
+  financeReviewedAt   DateTime?
+  financeNote         String?
+
+  // Owner review
+  ownerReviewedById   String?
+  ownerReviewedAt     DateTime?
+  rejectionReason     String?
+
+  // Payment
+  paidById            String?
+  paidAt              DateTime?
+  paymentNote         String?
+  closedAt            DateTime?
+  closedById          String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([schoolId, month, year])
+  @@index([orgId])
+  @@index([status])
+}
+
+model SalaryBatchLine {
+  id          String       @id @default(cuid())
+  batchId     String
+  batch       SalaryBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  staffId     String
+  staff       StaffProfile @relation("StaffSalaryLines", fields: [staffId], references: [id])
+
+  baseSalary  Decimal      @default(0) @db.Decimal(18, 2)
+  bonus       Decimal      @default(0) @db.Decimal(18, 2)
+  deductions  Decimal      @default(0) @db.Decimal(18, 2)
+  netPay      Decimal      @default(0) @db.Decimal(18, 2)
+  notes       String?
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([batchId, staffId])
+  @@index([batchId])
 }

@@ -9,7 +9,7 @@ const intlMiddleware = createMiddleware({
 })
 
 // Routes that require authentication
-const protectedRoutes = ['/admin', '/teacher', '/student', '/parent', '/super-admin']
+const protectedRoutes = ['/admin', '/teacher', '/student', '/parent', '/super-admin', '/company-store', '/my-purchases', '/messaging', '/profile', '/notifications']
 // Routes that should redirect if already authenticated
 const authRoutes = ['/auth/login', '/auth/register']
 
@@ -28,6 +28,20 @@ const ROLE_DASHBOARD: Record<string, string> = {
   ACCOUNTANT: '/admin/dashboard',
   LIBRARIAN: '/admin/dashboard',
   COUNSELOR: '/teacher/dashboard',
+  REQUISITIONS_MANAGER: '/admin/dashboard',
+  FINANCE_OFFICER: '/admin/dashboard',
+  IT_ADMIN: '/admin/dashboard',
+  HR_MANAGER: '/admin/dashboard',
+  STORE_MANAGER: '/admin/dashboard',
+  CANTEEN_MANAGER: '/admin/dashboard',
+  TRANSPORT_MANAGER: '/admin/dashboard',
+  RECEPTIONIST: '/admin/dashboard',
+  ADMISSION_OFFICER: '/admin/dashboard',
+  NURSE: '/admin/dashboard',
+  MATRON: '/admin/dashboard',
+  EVENT_COORDINATOR: '/admin/dashboard',
+  SUPPORT_AGENT: '/admin/dashboard',
+  ACTIVITIES_COORDINATOR: '/admin/dashboard',
 }
 
 function decodeJwtRole(token: string): string | null {

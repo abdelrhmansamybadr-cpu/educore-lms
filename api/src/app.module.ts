@@ -34,6 +34,11 @@ import { StoreModule } from './modules/store/store.module'
 import { AdmissionModule } from './modules/admission/admission.module'
 import { BoardingModule } from './modules/boarding/boarding.module'
 import { ReceptionistModule } from './modules/receptionist/receptionist.module'
+import { StudentAffairsModule } from './modules/student-affairs/student-affairs.module'
+import { OwnerModule } from './modules/owner/owner.module'
+import { RequisitionsModule } from './modules/requisitions/requisitions.module'
+import { SalaryModule } from './modules/salary/salary.module'
+import { ItModule } from './modules/it/it.module'
 import { PrismaModule } from './prisma/prisma.module'
 
 @Module({
@@ -83,6 +88,11 @@ import { PrismaModule } from './prisma/prisma.module'
     AdmissionModule,
     BoardingModule,
     ReceptionistModule,
+    StudentAffairsModule,
+    OwnerModule,
+    RequisitionsModule,
+    SalaryModule,
+    ItModule,
   ],
 })
 export class AppModule {}

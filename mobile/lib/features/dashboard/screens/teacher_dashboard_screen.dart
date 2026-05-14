@@ -7,7 +7,9 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/widgets/curriculum_badge.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/school_provider.dart';
 import '../../../shared/widgets/bottom_nav_widget.dart';
 import '../../../shared/widgets/stat_card_widget.dart';
 import '../../../shared/widgets/skeleton_loader.dart';
@@ -66,6 +68,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final school = context.watch<SchoolProvider>();
     final isAr = auth.isAr;
     final user = auth.user;
 
@@ -125,7 +128,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                           ),
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                            sliver: SliverToBoxAdapter(child: _buildQuickActions(isAr)),
+                            sliver: SliverToBoxAdapter(child: _buildQuickActions(isAr, school)),
                           ),
                         ],
                       ),
@@ -186,6 +189,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 6),
+              const CurriculumBadge(),
             ],
           ),
           Row(
@@ -347,15 +352,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(bool isAr) {
-    final actions = [
-      {'icon': Icons.fact_check_rounded, 'label': isAr ? 'تسجيل الحضور' : 'Take Attendance', 'color': AppColors.success, 'route': '/teacher/take-attendance'},
-      {'icon': Icons.grading_rounded, 'label': isAr ? 'التسليمات' : 'Grade Submissions', 'color': AppColors.warning, 'route': '/teacher/submissions'},
-      {'icon': Icons.chat_bubble_rounded, 'label': isAr ? 'الرسائل' : 'Messages', 'color': AppColors.primary, 'route': '/teacher/messages'},
-      {'icon': Icons.event_rounded, 'label': isAr ? 'الفعاليات' : 'Events', 'color': AppColors.info, 'route': '/teacher/events'},
-      {'icon': Icons.settings_rounded, 'label': isAr ? 'الإعدادات' : 'Settings', 'color': AppColors.textSecondary, 'route': '/teacher/settings'},
-      {'icon': Icons.notifications_rounded, 'label': isAr ? 'الإشعارات' : 'Notifications', 'color': AppColors.error, 'route': '/teacher/notifications'},
+  Widget _buildQuickActions(bool isAr, SchoolProvider school) {
+    final allActions = [
+      {'icon': Icons.fact_check_rounded, 'label': isAr ? 'تسجيل الحضور' : 'Take Attendance', 'color': AppColors.success, 'route': '/teacher/take-attendance', 'module': null},
+      {'icon': Icons.grading_rounded, 'label': isAr ? 'التسليمات' : 'Grade Submissions', 'color': AppColors.warning, 'route': '/teacher/submissions', 'module': null},
+      {'icon': Icons.chat_bubble_rounded, 'label': isAr ? 'الرسائل' : 'Messages', 'color': AppColors.primary, 'route': '/teacher/messages', 'module': null},
+      {'icon': Icons.event_rounded, 'label': isAr ? 'الفعاليات' : 'Events', 'color': AppColors.info, 'route': '/teacher/events', 'module': 'EVENTS'},
+      {'icon': Icons.settings_rounded, 'label': isAr ? 'الإعدادات' : 'Settings', 'color': AppColors.textSecondary, 'route': '/teacher/settings', 'module': null},
+      {'icon': Icons.notifications_rounded, 'label': isAr ? 'الإشعارات' : 'Notifications', 'color': AppColors.error, 'route': '/teacher/notifications', 'module': null},
     ];
+    final actions = allActions.where((a) {
+      final m = a['module'] as String?;
+      return m == null || school.isModuleEnabled(m);
+    }).toList();
 
     return GridView.count(
       crossAxisCount: 3,

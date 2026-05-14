@@ -121,6 +121,60 @@ export class SchoolsService {
     return this.prisma.schoolModuleConfig.findMany({ where: { schoolId } })
   }
 
+  /**
+   * Returns all schools the user has access to:
+   * - Org owners (OrgMember) → all schools under their organizations
+   * - Regular school member → just their one school
+   */
+  async getMySchools(userId: string, userSchoolId: string | null, orgId?: string | null) {
+    const SCHOOL_SELECT = { id: true, name: true, nameAr: true, curriculumType: true, logo: true, city: true, isActive: true } as const
+
+    // Fast path: org-level user — orgId comes straight from the JWT payload
+    if (orgId) {
+      return this.prisma.school.findMany({
+        where: { organizationId: orgId },
+        select: SCHOOL_SELECT,
+        orderBy: { createdAt: 'asc' },
+      })
+    }
+
+    // Check if this user is an org member (owner/admin of an org)
+    const memberships = await this.prisma.orgMember.findMany({
+      where: { userId },
+      select: { organizationId: true },
+    })
+
+    if (memberships.length > 0) {
+      const orgIds = memberships.map((m) => m.organizationId)
+      return this.prisma.school.findMany({
+        where: { organizationId: { in: orgIds } },
+        select: SCHOOL_SELECT,
+        orderBy: { createdAt: 'asc' },
+      })
+    }
+
+    // Fallback: query User.organizationId from DB
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    })
+    if (userRecord?.organizationId) {
+      return this.prisma.school.findMany({
+        where: { organizationId: userRecord.organizationId },
+        select: SCHOOL_SELECT,
+        orderBy: { createdAt: 'asc' },
+      })
+    }
+
+    // Regular school-level user — return only their own school
+    if (!userSchoolId) return []
+    const school = await this.prisma.school.findUnique({
+      where: { id: userSchoolId },
+      select: SCHOOL_SELECT,
+    })
+    return school ? [school] : []
+  }
+
   // ── Academic structure ────────────────────────────────────────────────────────
 
   async createAcademicYear(schoolId: string, data: {

@@ -134,6 +134,8 @@ class ApiEndpoints {
 
   // Store
   static const storeItems = '/store/items';
+  static const storeRequests = '/store/requests';
+  static const storeMyCollections = '/store/my-collections';
 
   // Admission
   static const admissionApplications = '/admission/applications';

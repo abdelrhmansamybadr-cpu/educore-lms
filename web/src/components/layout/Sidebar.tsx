@@ -127,7 +127,7 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
         ] },
       { key: 'finance', labelAr: 'المالية', labelEn: 'Finance',
         items: [
-          { key: 'payroll', label: 'Payroll', labelAr: 'كشف الرواتب', icon: <Banknote size={18} />, href: `${basePath}/hr/payroll` },
+          { key: 'salary', label: 'Salary Preparation', labelAr: 'إعداد الرواتب', icon: <Banknote size={18} />, href: `${basePath}/hr/salary` },
         ] },
       { key: 'hiring', labelAr: 'التوظيف', labelEn: 'Hiring',
         items: [
@@ -317,7 +317,7 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
         ] },
       { key: 'finance-payroll', labelAr: 'الرواتب', labelEn: 'Payroll',
         items: [
-          { key: 'fin-payroll',   label: 'Payroll Runs',        labelAr: 'دورات الرواتب',       icon: <Banknote size={18} />,        href: `${fp}?tab=payroll` },
+          { key: 'fin-salary',    label: 'Salary Batches',      labelAr: 'دفعات الرواتب',       icon: <Banknote size={18} />,        href: `${fp}?tab=salary` },
           { key: 'fin-loans',     label: 'Staff Loans',         labelAr: 'سلف الموظفين',        icon: <Handshake size={18} />,       href: `${fp}?tab=loans` },
         ] },
       { key: 'finance-expenses', labelAr: 'المصروفات', labelEn: 'Expenses',
@@ -372,7 +372,7 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
       personalSection,
       { key: 'payroll', labelAr: 'الرواتب', labelEn: 'Payroll',
         items: [
-          { key: 'fin-payroll', label: 'Payroll Runs', labelAr: 'دورات الرواتب',  icon: <Banknote size={18} />,  href: `${basePath}/finance?tab=payroll` },
+          { key: 'fin-salary', label: 'Salary Batches', labelAr: 'دفعات الرواتب', icon: <Banknote size={18} />,  href: `${basePath}/finance?tab=salary` },
           { key: 'fin-loans',   label: 'Staff Loans',  labelAr: 'سلف الموظفين',   icon: <Handshake size={18} />, href: `${basePath}/finance?tab=loans` },
         ] },
     ]
@@ -419,6 +419,7 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
         key: 'organization', labelAr: 'المؤسسة', labelEn: 'Organization',
         items: [
           { key: 'schools',           label: 'Schools',           labelAr: 'المدارس',            icon: <Building2 size={18} />,    href: `${basePath}/schools` },
+          { key: 'salary-approvals',  label: 'Salary Approvals',  labelAr: 'اعتماد الرواتب',      icon: <Banknote size={18} />,     href: `${basePath}/salary-approvals` },
           { key: 'purchase-requests', label: 'Purchase Requests', labelAr: 'طلبات الشراء',        icon: <ShoppingCart size={18} />, href: `${basePath}/purchase-requests` },
           { key: 'requisitions',      label: 'Requisitions',      labelAr: 'طلبات التوريد',       icon: <Package size={18} />,      href: `${basePath}/requisitions` },
           { key: 'jobs',              label: 'Job Applications',  labelAr: 'طلبات التوظيف',       icon: <Briefcase size={18} />,    href: `${basePath}/jobs` },

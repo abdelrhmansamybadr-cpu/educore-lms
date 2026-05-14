@@ -40,6 +40,16 @@ export class UsersController {
     return this.users.findAll(schoolId, query)
   }
 
+  @Get('search')
+  @Roles(
+    Role.SCHOOL_ADMIN, Role.SUPER_ADMIN, Role.FINANCE_OFFICER,
+    'CFO' as any, 'FINANCE_MANAGER' as any, 'CASHIER' as any, 'SCHOOL_ACCOUNTANT' as any, 'BRANCH_FINANCE_ADMIN' as any,
+  )
+  @ApiOperation({ summary: 'Search users by name or student ID (for cashier/finance)' })
+  searchUsers(@SchoolId() schoolId: string, @Query('q') q: string, @Query('role') role?: string, @Query('limit') limit?: string) {
+    return this.users.searchUsers(schoolId, q, role, limit ? +limit : 10)
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   getMe(@SchoolId() schoolId: string, @CurrentUser('id') id: string) {

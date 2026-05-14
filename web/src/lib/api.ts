@@ -33,11 +33,31 @@ function getSchoolSlug(): string {
   return 'demo'
 }
 
-// Request interceptor — attach token + school slug
+/** Returns the currently selected schoolId from the school-context store (null = org/all-schools) */
+function getSelectedSchoolId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem('educore-school-context')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return parsed?.state?.selectedSchoolId ?? null
+    }
+  } catch {}
+  return null
+}
+
+// Finance-page school scope override — set by the Finance page when it mounts/changes school
+let _financeSchoolOverride: string | null = null
+export function setFinanceSchoolScope(id: string | null) { _financeSchoolOverride = id }
+
+// Request interceptor — attach token + school slug + selected school context
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   config.headers['x-school-slug'] = getSchoolSlug()
+  // Finance page overrides the school context for its own calls; fallback to global school context
+  const schoolId = _financeSchoolOverride ?? getSelectedSchoolId()
+  if (schoolId) config.headers['x-school-id'] = schoolId
   return config
 })
 
@@ -81,3 +101,17 @@ api.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+/**
+ * Extracts a human-readable error message from an Axios error.
+ * Usage in onError callbacks: `onError: (err) => toast.error(getApiError(err))`
+ */
+// Alias so pages can import either `api` or `apiClient` from this module
+export { api as apiClient }
+
+export function getApiError(error: any, fallback = 'Something went wrong. Please try again.'): string {
+  const msg = error?.response?.data?.message
+  if (!msg) return fallback
+  if (Array.isArray(msg)) return msg.join(' ')
+  return msg
+}

@@ -6,10 +6,11 @@ import { Bell, Search, Menu, LogOut, Settings, User, ChevronDown } from 'lucide-
 import { Avatar } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { api } from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { SchoolSwitcher } from './SchoolSwitcher'
 
 interface TopbarProps {
   onMenuToggle?: () => void
@@ -21,7 +22,14 @@ export function Topbar({ onMenuToggle, title, titleAr }: TopbarProps) {
   const locale = useLocale()
   const isRtl = locale === 'ar'
   const router = useRouter()
+  const pathname = usePathname()
   const { user, clearAuth } = useAuthStore()
+
+  // Derive settings path from current URL segment
+  const pathSegment = pathname.split('/').find((s) =>
+    ['super-admin', 'admin', 'teacher', 'student', 'parent'].includes(s)
+  ) || 'admin'
+  const settingsPath = `/${locale}/${pathSegment}/settings`
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const { data: notifData } = useQuery({
@@ -55,13 +63,16 @@ export function Topbar({ onMenuToggle, title, titleAr }: TopbarProps) {
       </button>
 
       {/* Page title */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         {(title || titleAr) && (
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="text-lg font-semibold text-gray-900 truncate">
             {isRtl ? titleAr : title}
           </h1>
         )}
       </div>
+
+      {/* School context switcher — only visible when org has multiple schools */}
+      <SchoolSwitcher />
 
       {/* Search */}
       <div className="hidden md:flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 w-64 border border-gray-200">
@@ -110,7 +121,7 @@ export function Topbar({ onMenuToggle, title, titleAr }: TopbarProps) {
               {isRtl ? 'الملف الشخصي' : 'Profile'}
             </Link>
             <Link
-              href={`/${locale}/settings`}
+              href={settingsPath}
               className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
               onClick={() => setDropdownOpen(false)}
             >

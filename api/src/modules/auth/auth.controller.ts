@@ -114,6 +114,20 @@ export class AuthController {
     return this.auth.getMe(userId)
   }
 
+  // ── Update Profile ───────────────────────────────────────────────────────────
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update current user profile' })
+  updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() body: { firstName?: string; lastName?: string; email?: string },
+  ) {
+    return this.auth.updateProfile(userId, body)
+  }
+
   // ── Change Password ──────────────────────────────────────────────────────────
 
   @Patch('change-password')
@@ -126,6 +140,20 @@ export class AuthController {
     @Body() body: { currentPassword: string; newPassword: string },
   ) {
     return this.auth.changePassword(userId, body.currentPassword, body.newPassword)
+  }
+
+  // ── Set First Password (no current password required) ───────────────────────
+
+  @Patch('set-first-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Set password for first-time login (mustChangePassword must be true)' })
+  setFirstPassword(
+    @CurrentUser('id') userId: string,
+    @Body() body: { newPassword: string },
+  ) {
+    return this.auth.setFirstPassword(userId, body.newPassword)
   }
 
   // ── Google OAuth ─────────────────────────────────────────────────────────────

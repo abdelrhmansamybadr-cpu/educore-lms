@@ -23,7 +23,7 @@ export class TicketsController {
   }
 
   @Get()
-  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.SUPPORT_AGENT, Role.VICE_PRINCIPAL)
+  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.IT_MANAGER, Role.IT_STAFF, Role.SUPPORT_AGENT, Role.VICE_PRINCIPAL)
   @ApiOperation({ summary: 'Get all tickets (staff view)' })
   findAll(@SchoolId() schoolId: string, @Query() query: any) {
     return this.tickets.findAll(schoolId, query)
@@ -36,7 +36,7 @@ export class TicketsController {
   }
 
   @Get('stats')
-  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.SUPPORT_AGENT)
+  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.IT_MANAGER, Role.IT_STAFF, Role.SUPPORT_AGENT)
   @ApiOperation({ summary: 'Get ticket statistics' })
   getStats(@SchoolId() schoolId: string) {
     return this.tickets.getStats(schoolId)
@@ -49,7 +49,7 @@ export class TicketsController {
   }
 
   @Patch(':id')
-  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.SUPPORT_AGENT)
+  @Roles(Role.SCHOOL_ADMIN, Role.IT_ADMIN, Role.IT_MANAGER, Role.IT_STAFF, Role.SUPPORT_AGENT)
   @ApiOperation({ summary: 'Update ticket status/assignment' })
   update(@Param('id') id: string, @Body() dto: any) {
     return this.tickets.update(id, dto)
@@ -69,6 +69,26 @@ export class TicketsController {
   @ApiOperation({ summary: 'Get chat messages for a ticket' })
   getMessages(@Param('id') ticketId: string) {
     return this.tickets.getMessages(ticketId)
+  }
+
+  @Post(':id/take')
+  @Roles(Role.IT_ADMIN, Role.IT_MANAGER, Role.IT_STAFF, Role.SUPPORT_AGENT)
+  @ApiOperation({ summary: 'IT staff self-assigns a ticket' })
+  take(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.tickets.update(id, { assigneeId: userId })
+  }
+
+  @Post(':id/escalate')
+  @Roles(Role.IT_ADMIN, Role.IT_MANAGER, Role.IT_STAFF, Role.SUPPORT_AGENT, Role.SCHOOL_ADMIN)
+  @ApiOperation({ summary: 'Escalate ticket' })
+  escalate(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() dto: any) {
+    return this.tickets.update(id, { status: 'ESCALATED' as any, escalatedToId: dto.escalatedToId ?? userId, escalationReason: dto.reason })
+  }
+
+  @Post(':id/rate')
+  @ApiOperation({ summary: 'Rate a resolved ticket' })
+  rate(@Param('id') id: string, @Body() dto: any) {
+    return this.tickets.update(id, { rating: dto.rating, ratingFeedback: dto.feedback })
   }
 
   @Post(':id/messages')

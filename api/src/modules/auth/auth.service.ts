@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
@@ -24,6 +25,36 @@ export class AuthService {
     private config: ConfigService,
     private email: EmailService,
   ) {}
+
+  // ── Update Profile ───────────────────────────────────────────────────────────
+
+  async updateProfile(userId: string, dto: { firstName?: string; lastName?: string; email?: string }) {
+    if (dto.email) {
+      const existing = await this.prisma.user.findFirst({ where: { email: dto.email, NOT: { id: userId } } })
+      if (existing) throw new ConflictException('Email already in use')
+    }
+
+    const profileData: any = {}
+    if (dto.firstName) profileData.firstName = dto.firstName
+    if (dto.lastName) profileData.lastName = dto.lastName
+
+    const userData: any = {}
+    if (dto.email) userData.email = dto.email
+    if (Object.keys(profileData).length > 0) {
+      userData.profile = { update: profileData }
+    }
+
+    if (Object.keys(userData).length === 0) {
+      // Nothing to update — return current user
+      return this.prisma.user.findUnique({ where: { id: userId }, include: { profile: true } })
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: userData,
+      include: { profile: true },
+    })
+  }
 
   // ── Register ────────────────────────────────────────────────────────────────
 
@@ -89,7 +120,18 @@ export class AuthService {
     })
 
     const tokens = await this.generateTokens(user.id, user.email, user.role, user.schoolId)
-    return { user: this.sanitize(user), ...tokens }
+
+    // For SUPER_ADMIN / DEVELOPER — also return their org context
+    let organization = null
+    if (user.role === 'SUPER_ADMIN' || user.role === 'DEVELOPER') {
+      const orgMember = await this.prisma.orgMember.findFirst({
+        where: { userId: user.id },
+        include: { organization: { include: { subscription: true } } },
+      })
+      if (orgMember) organization = orgMember.organization
+    }
+
+    return { user: { ...this.sanitize(user), organization }, ...tokens }
   }
 
   // ── OAuth (Google / Microsoft) ───────────────────────────────────────────────
@@ -205,8 +247,19 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Current password is incorrect')
 
     const hashed = await bcrypt.hash(newPassword, 12)
-    await this.prisma.user.update({ where: { id: userId }, data: { password: hashed } })
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hashed, mustChangePassword: false } })
     return { message: 'Password changed successfully' }
+  }
+
+  // ── First-time password set (no current password required) ──────────────────
+  async setFirstPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    if (!user) throw new NotFoundException('User not found')
+    if (!user.mustChangePassword) throw new ForbiddenException('Password already set')
+
+    const hashed = await bcrypt.hash(newPassword, 12)
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hashed, mustChangePassword: false } })
+    return { message: 'Password set successfully' }
   }
 
   // ── Get Current User ─────────────────────────────────────────────────────────
@@ -228,7 +281,23 @@ export class AuthService {
     role: string,
     schoolId: string | null,
   ) {
-    const payload = { sub: userId, email, role, schoolId }
+    // Resolve orgId in priority order:
+    // 1. School's organizationId (school-level employees)
+    // 2. OrgMember.organizationId (SUPER_ADMIN / OWNER)
+    // 3. User.organizationId (company-level employees: no school, linked directly to org)
+    let orgId: string | null = null
+    if (schoolId) {
+      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { organizationId: true } })
+      orgId = school?.organizationId ?? null
+    } else {
+      const [member, user] = await Promise.all([
+        this.prisma.orgMember.findFirst({ where: { userId }, select: { organizationId: true } }),
+        this.prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } }),
+      ])
+      orgId = member?.organizationId ?? user?.organizationId ?? null
+    }
+
+    const payload = { sub: userId, email, role, schoolId, orgId }
 
     const accessToken = this.jwt.sign(payload, {
       secret: this.config.get('JWT_SECRET'),

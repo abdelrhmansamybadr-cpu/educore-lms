@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../features/auth/providers/school_provider.dart';
 
 class StudentBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -213,28 +215,19 @@ class AdminBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final school = context.watch<SchoolProvider>();
+    final hasEvents = school.isModuleEnabled('EVENTS');
+
+    // Build tab list dynamically: Home, Users, [Events|Messages], Profile
+    final routes = ['/admin', '/admin/users', hasEvents ? '/admin/events' : '/admin/messages', '/admin/profile'];
+
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: NavigationBar(
         selectedIndex: currentIndex,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/admin');
-              break;
-            case 1:
-              context.go('/admin/users');
-              break;
-            case 2:
-              context.go('/admin/events');
-              break;
-            case 3:
-              context.go('/admin/profile');
-              break;
-          }
-        },
+        onDestinationSelected: (index) => context.go(routes[index]),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),
@@ -246,11 +239,18 @@ class AdminBottomNav extends StatelessWidget {
             selectedIcon: const Icon(Icons.people_rounded),
             label: isAr ? 'المستخدمون' : 'Users',
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.event_outlined),
-            selectedIcon: const Icon(Icons.event_rounded),
-            label: isAr ? 'الفعاليات' : 'Events',
-          ),
+          if (hasEvents)
+            NavigationDestination(
+              icon: const Icon(Icons.event_outlined),
+              selectedIcon: const Icon(Icons.event_rounded),
+              label: isAr ? 'الفعاليات' : 'Events',
+            )
+          else
+            NavigationDestination(
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              selectedIcon: const Icon(Icons.chat_bubble_rounded),
+              label: isAr ? 'الرسائل' : 'Messages',
+            ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline_rounded),
             selectedIcon: const Icon(Icons.person_rounded),

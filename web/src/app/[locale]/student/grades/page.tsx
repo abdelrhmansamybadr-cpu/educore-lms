@@ -72,7 +72,7 @@ export default function StudentGradesPage() {
         <div className="overflow-x-auto">
           {isLoading ? (
             <div className="p-6 space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-          ) : grades?.length === 0 ? (
+          ) : !grades?.length ? (
             <div className="py-16 text-center text-gray-400">
               <BarChart2 size={48} className="mx-auto mb-3 opacity-30" />
               <p>{isRtl ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
@@ -89,7 +89,7 @@ export default function StudentGradesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {grades.map((grade: any) => (
+                {(grades || []).map((grade: any) => (
                   <tr key={grade.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{grade.title || grade.type}</p>

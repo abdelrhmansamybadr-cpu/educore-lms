@@ -7,7 +7,9 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/utils/helpers.dart';
+import '../../../core/widgets/curriculum_badge.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/school_provider.dart';
 import '../../../shared/widgets/bottom_nav_widget.dart';
 import '../../../shared/widgets/stat_card_widget.dart';
 import '../../../shared/widgets/skeleton_loader.dart';
@@ -66,6 +68,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final school = context.watch<SchoolProvider>();
     final isAr = auth.isAr;
     final user = auth.user;
 
@@ -151,7 +154,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                             sliver: SliverToBoxAdapter(
-                              child: _buildQuickActions(isAr),
+                              child: _buildQuickActions(isAr, school),
                             ),
                           ),
                         ],
@@ -202,6 +205,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  const CurriculumBadge(),
                 ],
               ),
               Row(
@@ -537,17 +542,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(bool isAr) {
-    final actions = [
-      {'icon': Icons.calendar_view_week_rounded, 'label': isAr ? 'الجدول' : 'Schedule', 'color': AppColors.info, 'route': '/student/schedule'},
-      {'icon': Icons.event_rounded, 'label': isAr ? 'الفعاليات' : 'Events', 'color': AppColors.success, 'route': '/student/events'},
-      {'icon': Icons.chat_bubble_rounded, 'label': isAr ? 'الرسائل' : 'Messages', 'color': AppColors.primary, 'route': '/student/messages'},
-      {'icon': Icons.auto_awesome_rounded, 'label': isAr ? 'المعلم الذكي' : 'AI Tutor', 'color': AppColors.accent, 'route': '/student/ai-tutor'},
-      {'icon': Icons.library_books_rounded, 'label': isAr ? 'المكتبة' : 'Library', 'color': AppColors.warning, 'route': '/student/library'},
-      {'icon': Icons.emoji_events_rounded, 'label': isAr ? 'الإنجازات' : 'Achievements', 'color': AppColors.error, 'route': '/student/gamification'},
-      {'icon': Icons.receipt_long_rounded, 'label': isAr ? 'الرسوم' : 'Fees', 'color': AppColors.success, 'route': '/student/fees'},
-      {'icon': Icons.directions_bus_rounded, 'label': isAr ? 'حافلتي' : 'My Bus', 'color': AppColors.info, 'route': '/student/transport'},
+  Widget _buildQuickActions(bool isAr, SchoolProvider school) {
+    final allActions = [
+      {'icon': Icons.calendar_view_week_rounded, 'label': isAr ? 'الجدول' : 'Schedule', 'color': AppColors.info, 'route': '/student/schedule', 'module': null},
+      {'icon': Icons.event_rounded, 'label': isAr ? 'الفعاليات' : 'Events', 'color': AppColors.success, 'route': '/student/events', 'module': 'EVENTS'},
+      {'icon': Icons.chat_bubble_rounded, 'label': isAr ? 'الرسائل' : 'Messages', 'color': AppColors.primary, 'route': '/student/messages', 'module': null},
+      {'icon': Icons.auto_awesome_rounded, 'label': isAr ? 'المعلم الذكي' : 'AI Tutor', 'color': AppColors.accent, 'route': '/student/ai-tutor', 'module': null},
+      {'icon': Icons.library_books_rounded, 'label': isAr ? 'المكتبة' : 'Library', 'color': AppColors.warning, 'route': '/student/library', 'module': 'LIBRARY'},
+      {'icon': Icons.emoji_events_rounded, 'label': isAr ? 'الإنجازات' : 'Achievements', 'color': AppColors.error, 'route': '/student/gamification', 'module': null},
+      {'icon': Icons.receipt_long_rounded, 'label': isAr ? 'الرسوم' : 'Fees', 'color': AppColors.success, 'route': '/student/fees', 'module': 'FINANCE'},
+      {'icon': Icons.directions_bus_rounded, 'label': isAr ? 'حافلتي' : 'My Bus', 'color': AppColors.info, 'route': '/student/transport', 'module': 'TRANSPORT'},
     ];
+    final actions = allActions.where((a) {
+      final m = a['module'] as String?;
+      return m == null || school.isModuleEnabled(m);
+    }).toList();
 
     return GridView.count(
       crossAxisCount: 3,

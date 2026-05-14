@@ -111,6 +111,38 @@ export class UsersService {
 
   // ── Update ───────────────────────────────────────────────────────────────────
 
+  async searchUsers(schoolId: string, q: string, role?: string, limit = 10) {
+    const where: any = {
+      schoolId,
+      isActive: true,
+      ...(role ? { role: role as Role } : {}),
+      OR: [
+        { profile: { firstName: { contains: q, mode: 'insensitive' } } },
+        { profile: { lastName: { contains: q, mode: 'insensitive' } } },
+        { profile: { firstNameAr: { contains: q, mode: 'insensitive' } } },
+        { profile: { lastNameAr: { contains: q, mode: 'insensitive' } } },
+        { profile: { studentId: { contains: q, mode: 'insensitive' } } },
+        { email: { contains: q, mode: 'insensitive' } },
+      ],
+    }
+
+    return this.prisma.user.findMany({
+      where,
+      take: limit,
+      select: {
+        id: true,
+        role: true,
+        profile: {
+          select: {
+            firstName: true, lastName: true, firstNameAr: true, lastNameAr: true,
+            avatar: true, studentId: true,
+          },
+        },
+        school: { select: { name: true, nameAr: true } },
+      },
+    })
+  }
+
   async update(schoolId: string, id: string, dto: UpdateUserDto) {
     await this.findOne(schoolId, id)
     const { isActive, language, ...profileData } = dto

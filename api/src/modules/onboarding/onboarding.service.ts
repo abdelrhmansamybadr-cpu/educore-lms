@@ -11,6 +11,7 @@ const CURRICULUM_MODULES: Record<string, string[]> = {
   SAUDI:    ['FINANCE','LIBRARY','HEALTH','TRANSPORT','CANTEEN','EVENTS','TICKETS','DEVICES','HR','ADMISSION','STORE','GAMIFICATION','LIVE_CLASSES','MENTAL_HEALTH'],
   CUSTOM:   ['FINANCE','LIBRARY','HEALTH','TRANSPORT','CANTEEN','EVENTS','TICKETS','DEVICES','HR','ADMISSION','STORE','GAMIFICATION','AI_TUTOR','LIVE_CLASSES','MENTAL_HEALTH'],
   MIXED:    ['FINANCE','LIBRARY','HEALTH','TRANSPORT','CANTEEN','EVENTS','TICKETS','DEVICES','HR','ADMISSION','STORE','GAMIFICATION','AI_TUTOR','LIVE_CLASSES','MENTAL_HEALTH'],
+  NATIONAL: ['FINANCE','LIBRARY','HEALTH','TRANSPORT','CANTEEN','EVENTS','TICKETS','DEVICES','HR','ADMISSION','STORE','GAMIFICATION','LIVE_CLASSES','MENTAL_HEALTH'],
 }
 
 // Curriculum-specific grading defaults
@@ -22,6 +23,7 @@ const CURRICULUM_SETTINGS: Record<string, any> = {
   SAUDI:    { gradingSystem: 'PERCENTAGE', passMark: 50, gpaScale: 4.0, reportCardTemplate: 'STANDARD', termStructure: { count: 2, names: ['الفصل الأول','الفصل الثاني'] } },
   CUSTOM:   { gradingSystem: 'PERCENTAGE', passMark: 50, gpaScale: 4.0, reportCardTemplate: 'STANDARD', termStructure: { count: 3, names: ['Term 1','Term 2','Term 3'] } },
   MIXED:    { gradingSystem: 'PERCENTAGE', passMark: 50, gpaScale: 4.0, reportCardTemplate: 'STANDARD', termStructure: { count: 3, names: ['Term 1','Term 2','Term 3'] } },
+  NATIONAL: { gradingSystem: 'PERCENTAGE', passMark: 50, gpaScale: 4.0, reportCardTemplate: 'STANDARD', termStructure: { count: 2, names: ['الفصل الأول','الفصل الثاني'] } },
 }
 
 @Injectable()
@@ -106,9 +108,13 @@ export class OnboardingService {
     currency: string
     numberOfStudents?: number
   }) {
-    const slug = dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    const exists = await this.prisma.school.findUnique({ where: { slug } })
-    if (exists) throw new ConflictException('School with this name already exists')
+    // Generate a unique slug — append a short random suffix if base slug is taken
+    let slug = dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const existing = await this.prisma.school.findUnique({ where: { slug } })
+    if (existing) {
+      // Append 4-char random suffix to make it unique (supports multi-curriculum onboarding)
+      slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
+    }
 
     const school = await this.prisma.school.create({
       data: {

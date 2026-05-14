@@ -8,7 +8,7 @@ import { useSchoolContext } from '@/stores/schoolContextStore'
 import { apiClient } from '@/lib/api-client'
 import { useLocale } from 'next-intl'
 import { Card, CardHeader, CardBody, Badge, Skeleton } from '@/components/ui'
-import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, BarChart2, X, Calendar, Building2 } from 'lucide-react'
+import { DollarSign, Plus, Clock, CheckCircle, AlertCircle, Package, Truck, XCircle, ArrowUpRight, Eye, BookOpen, BarChart2, X, Calendar, Building2, ChevronRight, ArrowLeft, Briefcase, FileDown, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,8 +19,8 @@ const STATUS_COLORS: Record<string, string> = {
   PARTIAL: 'primary',
 }
 
-type FinanceTab = 'invoices' | 'fees' | 'procurement' | 'accounts' | 'journal' | 'payroll' | 'loans' | 'expenses' | 'bank' | 'budget' | 'reports' | 'payments' | 'fiscal-years' | 'cost-centers'
-const VALID_TABS: FinanceTab[] = ['invoices', 'fees', 'procurement', 'accounts', 'journal', 'payroll', 'loans', 'expenses', 'bank', 'budget', 'reports', 'payments', 'fiscal-years', 'cost-centers']
+type FinanceTab = 'invoices' | 'fees' | 'procurement' | 'accounts' | 'journal' | 'salary' | 'loans' | 'expenses' | 'bank' | 'budget' | 'reports' | 'payments' | 'fiscal-years' | 'cost-centers'
+const VALID_TABS: FinanceTab[] = ['invoices', 'fees', 'procurement', 'accounts', 'journal', 'salary', 'loans', 'expenses', 'bank', 'budget', 'reports', 'payments', 'fiscal-years', 'cost-centers']
 
 // ── Quick Reports Component ───────────────────────────────────────────────────
 function QuickReports({ isRtl }: { isRtl: boolean }) {
@@ -395,10 +395,42 @@ function AdminFinancePageInner() {
     enabled: tab === 'accounts' || tab === 'journal',
   })
 
-  const { data: payrollRuns = [], isLoading: payrollLoading } = useQuery<any[]>({
-    queryKey: ['payroll-runs'],
-    queryFn: () => api.get('/finance/payroll-runs').then((r) => r.data?.data || []),
-    enabled: tab === 'payroll',
+  // ── Salary drill-down state ───────────────────────────────────────────────────
+  const [salaryEntity, setSalaryEntity] = useState<{ id: string | null; name: string; nameAr: string; curriculumType?: string } | null>(null)
+  const [salaryYear, setSalaryYear] = useState<number | null>(null)
+  const [salaryMonth, setSalaryMonth] = useState<number | null>(null)
+  const [salaryRejectModal, setSalaryRejectModal] = useState<{ id: string } | null>(null)
+  const [salaryRejectReason, setSalaryRejectReason] = useState('')
+
+  const salarySchoolHeader = salaryEntity?.id ?? '__company__'
+
+  const { data: salaryBatchList = [], isLoading: salaryLoading } = useQuery<any[]>({
+    queryKey: ['salary-batches-finance', salarySchoolHeader, salaryYear],
+    queryFn: () => api.get('/salary/batches/for-finance', {
+      params: { year: salaryYear },
+    }).then((r) => {
+      const all = r.data?.data ?? r.data ?? []
+      // Filter by selected entity: company (schoolId=null) or specific school
+      return all.filter((b: any) =>
+        salaryEntity?.id === null ? b.schoolId === null : b.schoolId === salaryEntity?.id
+      )
+    }),
+    enabled: tab === 'salary' && !!salaryEntity && salaryYear !== null && salaryMonth === null,
+  })
+
+  const { data: salaryBatchDetail, isLoading: salaryDetailLoading } = useQuery<any>({
+    queryKey: ['salary-batch-finance-detail', salarySchoolHeader, salaryMonth, salaryYear],
+    queryFn: () => api.get('/salary/batches/for-finance', {
+      params: { year: salaryYear, month: salaryMonth },
+    }).then((r) => {
+      const all = r.data?.data ?? r.data ?? []
+      const list = Array.isArray(all) ? all : [all]
+      // Match exact entity (company or specific school)
+      return list.find((b: any) =>
+        salaryEntity?.id === null ? b.schoolId === null : b.schoolId === salaryEntity?.id
+      ) ?? null
+    }),
+    enabled: tab === 'salary' && !!salaryEntity && salaryMonth !== null && salaryYear !== null,
   })
 
   const { data: loans = [] } = useQuery<any[]>({
@@ -414,8 +446,8 @@ function AdminFinancePageInner() {
   })
 
   const { data: budgets = [], isLoading: budgetLoading } = useQuery<any[]>({
-    queryKey: ['budgets'],
-    queryFn: () => api.get('/finance/budgets').then((r) => r.data?.data || []),
+    queryKey: ['budgets', selectedSchoolId],
+    queryFn: () => api.get('/finance/budgets', { params: selectedSchoolId ? { schoolId: selectedSchoolId } : {} }).then((r) => r.data?.data || []),
     enabled: tab === 'budget',
   })
 
@@ -545,21 +577,45 @@ function AdminFinancePageInner() {
     onError: (e) => toast.error(getApiError(e)),
   })
 
-  const processPayroll = useMutation({
-    mutationFn: (id: string) => api.post(`/finance/payroll-runs/${id}/process`),
-    onSuccess: () => { toast.success('Payroll processed'); qc.invalidateQueries({ queryKey: ['payroll-runs'] }) },
+  const financeApproveSalary = useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => api.post(`/salary/batches/${id}/finance-approve`, { note }),
+    onSuccess: () => {
+      toast.success('Approved — sent to Owner')
+      qc.invalidateQueries({ queryKey: ['salary-batches-finance'] })
+      qc.invalidateQueries({ queryKey: ['salary-batch-finance-detail'] })
+    },
     onError: (e) => toast.error(getApiError(e)),
   })
 
-  const approvePayroll = useMutation({
-    mutationFn: (id: string) => api.post(`/finance/payroll-runs/${id}/approve`),
-    onSuccess: () => { toast.success('Payroll approved'); qc.invalidateQueries({ queryKey: ['payroll-runs'] }) },
+  const financeRejectSalary = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.post(`/salary/batches/${id}/finance-reject`, { reason }),
+    onSuccess: () => {
+      toast.success('Batch rejected — HR notified')
+      qc.invalidateQueries({ queryKey: ['salary-batches-finance'] })
+      qc.invalidateQueries({ queryKey: ['salary-batch-finance-detail'] })
+      setSalaryRejectModal(null)
+      setSalaryRejectReason('')
+    },
     onError: (e) => toast.error(getApiError(e)),
   })
 
-  const payPayroll = useMutation({
-    mutationFn: (id: string) => api.post(`/finance/payroll-runs/${id}/pay`),
-    onSuccess: () => { toast.success('Payroll marked as paid'); qc.invalidateQueries({ queryKey: ['payroll-runs'] }) },
+  const markSalaryPaid = useMutation({
+    mutationFn: (id: string) => api.post(`/salary/batches/${id}/mark-paid`),
+    onSuccess: () => {
+      toast.success('Salaries marked as transferred')
+      qc.invalidateQueries({ queryKey: ['salary-batches-finance'] })
+      qc.invalidateQueries({ queryKey: ['salary-batch-finance-detail'] })
+    },
+    onError: (e) => toast.error(getApiError(e)),
+  })
+
+  const closeSalaryBatch = useMutation({
+    mutationFn: (id: string) => api.post(`/salary/batches/${id}/close`),
+    onSuccess: () => {
+      toast.success('Month closed')
+      qc.invalidateQueries({ queryKey: ['salary-batches-finance'] })
+      qc.invalidateQueries({ queryKey: ['salary-batch-finance-detail'] })
+    },
     onError: (e) => toast.error(getApiError(e)),
   })
 
@@ -594,13 +650,14 @@ function AdminFinancePageInner() {
   })
 
   const createPayrollRun = useMutation({
-    mutationFn: (dto: { month: number; year: number }) => api.post('/finance/payroll-runs', dto),
+    mutationFn: (dto: { month: number; year: number; schoolId?: string }) => api.post('/finance/payroll-runs', dto),
     onSuccess: () => { toast.success('Payroll run created'); qc.invalidateQueries({ queryKey: ['payroll-runs'] }) },
     onError: (e) => toast.error(getApiError(e)),
   })
 
   const [newRunMonth, setNewRunMonth] = useState(new Date().getMonth() + 1)
   const [newRunYear, setNewRunYear] = useState(new Date().getFullYear())
+  const [newRunSchoolId, setNewRunSchoolId] = useState<string>('')
   const [showRunForm, setShowRunForm] = useState(false)
 
   // ── Bank Accounts Query ───────────────────────────────────────────────────────
@@ -819,7 +876,13 @@ function AdminFinancePageInner() {
 
   // ── Modal state — Budget ──────────────────────────────────────────────────────
   const [showBudgetModal, setShowBudgetModal] = useState(false)
-  const [budgetForm, setBudgetForm] = useState({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '' })
+  const [budgetForm, setBudgetForm] = useState({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '', scopeType: 'company', schoolId: '' })
+
+  const { data: orgSchools = [] } = useQuery<any[]>({
+    queryKey: ['org-schools-list'],
+    queryFn: () => api.get('/schools/my-list').then((r: any) => r.data?.data ?? r.data ?? []),
+    enabled: showBudgetModal || showRunForm,
+  })
 
   const createBudgetMutation = useMutation({
     mutationFn: (dto: any) => api.post('/finance/budgets', dto),
@@ -827,7 +890,7 @@ function AdminFinancePageInner() {
       toast.success(isRtl ? 'تم إنشاء الميزانية' : 'Budget created')
       qc.invalidateQueries({ queryKey: ['budgets'] })
       setShowBudgetModal(false)
-      setBudgetForm({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '' })
+      setBudgetForm({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '', scopeType: 'company', schoolId: '' })
     },
     onError: (e) => toast.error(getApiError(e)),
   })
@@ -1002,7 +1065,7 @@ function AdminFinancePageInner() {
     procurement:   { en: 'Procurement',          ar: 'المستلزمات' },
     accounts:      { en: 'Chart of Accounts',    ar: 'دليل الحسابات' },
     journal:       { en: 'Journal Entries',      ar: 'القيود اليومية' },
-    payroll:       { en: 'Payroll Runs',         ar: 'دورات الرواتب' },
+    salary:        { en: 'Salary Batches',       ar: 'دفعات الرواتب' },
     loans:         { en: 'Staff Loans',          ar: 'سلف الموظفين' },
     expenses:      { en: 'Expense Claims',       ar: 'مطالبات المصروفات' },
     bank:          { en: 'Bank Accounts',        ar: 'الحسابات البنكية' },
@@ -1135,9 +1198,37 @@ function AdminFinancePageInner() {
         loading={createBudgetMutation.isPending}
         onSubmit={() => {
           if (!budgetForm.name || !budgetForm.fiscalYear || !budgetForm.totalAmount || !budgetForm.startDate || !budgetForm.endDate) { toast.error(isRtl ? 'يرجى ملء جميع الحقول' : 'Fill all fields'); return }
-          createBudgetMutation.mutate({ name: budgetForm.name, fiscalYear: +budgetForm.fiscalYear, totalAmount: +budgetForm.totalAmount, startDate: budgetForm.startDate, endDate: budgetForm.endDate })
+          if (budgetForm.scopeType === 'school' && !budgetForm.schoolId) { toast.error(isRtl ? 'يرجى اختيار مدرسة' : 'Select a school'); return }
+          createBudgetMutation.mutate({
+            name: budgetForm.name,
+            fiscalYear: +budgetForm.fiscalYear,
+            totalAmount: +budgetForm.totalAmount,
+            startDate: budgetForm.startDate,
+            endDate: budgetForm.endDate,
+            ...(budgetForm.scopeType === 'school' && budgetForm.schoolId ? { schoolId: budgetForm.schoolId } : {}),
+          })
         }}>
         <InputField label={isRtl ? 'اسم الميزانية' : 'Budget Name'} value={budgetForm.name} onChange={(v) => setBudgetForm(f => ({ ...f, name: v }))} />
+
+        {/* Scope selector */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">{isRtl ? 'النطاق' : 'Budget Scope'}</label>
+          <div className="flex flex-wrap gap-2">
+            <button type="button"
+              onClick={() => setBudgetForm(f => ({ ...f, scopeType: 'company', schoolId: '' }))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${budgetForm.scopeType === 'company' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}>
+              🏢 {isRtl ? 'الشركة (جميع المدارس)' : 'Company (All Schools)'}
+            </button>
+            {(orgSchools as any[]).map((s: any) => (
+              <button key={s.id} type="button"
+                onClick={() => setBudgetForm(f => ({ ...f, scopeType: 'school', schoolId: s.id }))}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${budgetForm.scopeType === 'school' && budgetForm.schoolId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}>
+                🏫 {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <InputField label={isRtl ? 'السنة المالية' : 'Fiscal Year'} value={budgetForm.fiscalYear} onChange={(v) => setBudgetForm(f => ({ ...f, fiscalYear: v }))} type="number" />
         <InputField label={isRtl ? 'إجمالي الميزانية' : 'Total Amount'} value={budgetForm.totalAmount} onChange={(v) => setBudgetForm(f => ({ ...f, totalAmount: v }))} type="number" placeholder="0.00" />
         <InputField label={isRtl ? 'تاريخ البداية' : 'Start Date'} value={budgetForm.startDate} onChange={(v) => setBudgetForm(f => ({ ...f, startDate: v }))} type="date" />
@@ -1541,7 +1632,7 @@ function AdminFinancePageInner() {
       )}
 
       {/* ── School Scope Selector ───────────────────────────────────────────── */}
-      {mySchools.length > 0 && (
+      {mySchools.length > 0 && tab !== 'salary' && tab !== 'bank' && (
         <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide shrink-0">
             {isRtl ? 'النطاق:' : 'Scope:'}
@@ -2167,101 +2258,270 @@ function AdminFinancePageInner() {
         </Card>
       )}
 
-      {/* ── Payroll Tab ───────────────────────────────────────────────────────── */}
-      {tab === 'payroll' && (
-        <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-gray-900">{isRtl ? 'دورات الرواتب' : 'Payroll Runs'}</h2>
-                <button onClick={() => setShowRunForm(!showRunForm)}
-                  className="flex items-center gap-1.5 text-sm px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700">
-                  <Plus size={14} /> {isRtl ? 'دورة جديدة' : 'New Run'}
-                </button>
-              </div>
-              {showRunForm && (
-                <div className="mt-4 flex items-end gap-3 flex-wrap">
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">{isRtl ? 'الشهر' : 'Month'}</label>
-                    <select value={newRunMonth} onChange={e => setNewRunMonth(+e.target.value)}
-                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm">
-                      {Array.from({ length: 12 }, (_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('en', { month: 'long' })}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">{isRtl ? 'السنة' : 'Year'}</label>
-                    <input type="number" value={newRunYear} onChange={e => setNewRunYear(+e.target.value)} min={2020} max={2030}
-                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-24" />
-                  </div>
-                  <button onClick={() => { createPayrollRun.mutate({ month: newRunMonth, year: newRunYear }); setShowRunForm(false) }}
-                    disabled={createPayrollRun.isPending}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-700 disabled:opacity-50">
-                    {isRtl ? 'إنشاء' : 'Create'}
+      {/* ── Payroll Tab — 4-level drill-down ─────────────────────────────────── */}
+      {tab === 'salary' && (() => {
+        const SALARY_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        const SALARY_MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+        const SALARY_STATUS: Record<string,{label:string;labelAr:string;color:string}> = {
+          DRAFT:           { label:'Draft',                labelAr:'مسودة',              color:'bg-gray-100 text-gray-700' },
+          SUBMITTED:       { label:'Submitted to Finance', labelAr:'أُرسل للمالية',      color:'bg-blue-100 text-blue-700' },
+          FINANCE_REJECTED:{ label:'Finance Rejected',     labelAr:'مرفوض من المالية',   color:'bg-red-100 text-red-700' },
+          OWNER_PENDING:   { label:'Awaiting Owner',       labelAr:'بانتظار المالك',     color:'bg-yellow-100 text-yellow-700' },
+          OWNER_APPROVED:  { label:'Owner Approved',       labelAr:'موافقة المالك',      color:'bg-green-100 text-green-700' },
+          OWNER_REJECTED:  { label:'Owner Rejected',       labelAr:'مرفوض من المالك',   color:'bg-red-100 text-red-700' },
+          IN_PAYMENT:      { label:'In Transfer',          labelAr:'قيد التحويل',        color:'bg-purple-100 text-purple-700' },
+          PAID:            { label:'Paid',                 labelAr:'تم الدفع',           color:'bg-green-100 text-green-700' },
+          CLOSED:          { label:'Closed',               labelAr:'مغلق',               color:'bg-gray-100 text-gray-500' },
+        }
+        const CURR_COLORS: Record<string,string> = {
+          BRITISH:'bg-blue-900',AMERICAN:'bg-red-700',IB:'bg-green-700',
+          NATIONAL:'bg-indigo-700',MIXED:'bg-purple-700',CUSTOM:'bg-gray-600',
+        }
+        const salNow = new Date()
+        const salYears = [salNow.getFullYear()+1, salNow.getFullYear(), salNow.getFullYear()-1, salNow.getFullYear()-2]
+        const salEntities = [
+          { id: null as string|null, name:'Company Staff', nameAr:'موظفو الشركة', curriculumType:'CUSTOM' },
+          ...mySchools.map(s => ({ id: s.id, name: s.name, nameAr: s.nameAr, curriculumType: s.curriculumType })),
+        ]
+
+        function printFinanceSalaryBatch(batch: any, entityName: string, currency: string, monthName: string) {
+          const lines = batch.lines ?? []
+          const rows = lines.map((l: any) => {
+            const name = [l.staff?.user?.profile?.firstName, l.staff?.user?.profile?.lastName].filter(Boolean).join(' ') || l.staff?.user?.email
+            return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${name}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${Number(l.baseSalary).toLocaleString()}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${Number(l.bonus).toLocaleString()}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${Number(l.deductions).toLocaleString()}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold">${Number(l.netPay).toLocaleString()} ${currency}</td></tr>`
+          }).join('')
+          const html = `<!DOCTYPE html><html><head><title>Salary Report — ${entityName} — ${monthName} ${batch.year}</title><style>body{font-family:sans-serif;padding:40px;color:#333}table{width:100%;border-collapse:collapse;margin-top:24px}th{background:#f5f5f5;padding:10px 8px;text-align:left;font-size:13px;border-bottom:2px solid #ddd}td{font-size:13px}tfoot td{background:#f9f9f9;font-weight:bold;padding:10px 8px;border-top:2px solid #ddd}</style></head><body><h1>Salary Report</h1><p>${entityName} &mdash; ${monthName} ${batch.year} &mdash; Status: ${batch.status}</p><table><thead><tr><th>Employee</th><th style="text-align:right">Base</th><th style="text-align:right">Bonus</th><th style="text-align:right">Deductions</th><th style="text-align:right">Net Pay</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total (${lines.length} employees)</td><td style="text-align:right">${Number(batch.totalBaseSalary).toLocaleString()}</td><td style="text-align:right">+${Number(batch.totalBonus).toLocaleString()}</td><td style="text-align:right">-${Number(batch.totalDeductions).toLocaleString()}</td><td style="text-align:right">${Number(batch.totalNet).toLocaleString()} ${currency}</td></tr></tfoot></table><script>window.onload=()=>window.print()</script></body></html>`
+          const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close() }
+        }
+
+        const salEntityName = isRtl ? (salaryEntity?.nameAr ?? '') : (salaryEntity?.name ?? '')
+        const salMonthName = salaryMonth ? (isRtl ? SALARY_MONTHS_AR[salaryMonth-1] : SALARY_MONTHS[salaryMonth-1]) : ''
+        const salCurrency = salaryBatchDetail?.orgCurrency ?? salaryBatchDetail?.school?.currency ?? 'SAR'
+
+        // Breadcrumb
+        const SalBreadcrumb = () => (
+          <div className="flex items-center gap-1.5 text-sm text-gray-500 flex-wrap">
+            <button onClick={() => { setSalaryEntity(null); setSalaryYear(null); setSalaryMonth(null) }} className="hover:text-indigo-600 font-medium">
+              {isRtl ? 'الكيانات' : 'Entities'}
+            </button>
+            {salaryEntity && (<><ChevronRight size={14} /><button onClick={() => { setSalaryYear(null); setSalaryMonth(null) }} className="hover:text-indigo-600">{salEntityName}</button></>)}
+            {salaryYear !== null && (<><ChevronRight size={14} /><button onClick={() => setSalaryMonth(null)} className="hover:text-indigo-600">{salaryYear}</button></>)}
+            {salaryMonth !== null && (<><ChevronRight size={14} /><span className="text-gray-800 font-semibold">{salMonthName}</span></>)}
+          </div>
+        )
+
+        // Level 1: Entity picker
+        if (!salaryEntity) return (
+          <div className="space-y-4 p-1">
+            <p className="text-sm text-gray-500">{isRtl ? 'اختر الكيان لعرض دفعات الرواتب' : 'Select an entity to view salary batches'}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {salEntities.map(e => {
+                const bg = CURR_COLORS[e.curriculumType ?? 'CUSTOM'] ?? 'bg-gray-600'
+                return (
+                  <button key={e.id ?? '__company__'} onClick={() => { setSalaryEntity(e); setSalaryYear(null); setSalaryMonth(null) }}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow text-left">
+                    <div className={`h-2 ${bg}`} />
+                    <div className="p-4 flex items-center gap-3">
+                      <div className="bg-indigo-50 p-2 rounded-xl">
+                        {e.id === null ? <Briefcase size={18} className="text-indigo-600" /> : <Building2 size={18} className="text-indigo-600" />}
+                      </div>
+                      <p className="font-bold text-gray-900 text-sm">{isRtl ? e.nameAr : e.name}</p>
+                    </div>
                   </button>
-                  <button onClick={() => setShowRunForm(false)} className="px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
-                    {isRtl ? 'إلغاء' : 'Cancel'}
-                  </button>
-                </div>
-              )}
-            </CardHeader>
-            <div className="overflow-x-auto">
-              {payrollLoading
-                ? <div className="p-4 space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-                : payrollRuns.length === 0
-                  ? <p className="text-center py-8 text-gray-400 text-sm">{isRtl ? 'لا توجد دورات رواتب' : 'No payroll runs yet'}</p>
-                  : <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50">
-                          <th className="px-4 py-3 text-left font-semibold text-gray-600">{isRtl ? 'الفترة' : 'Period'}</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-600">{isRtl ? 'إجمالي الرواتب' : 'Gross'}</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-600">{isRtl ? 'الخصومات' : 'Deductions'}</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-600">{isRtl ? 'الصافي' : 'Net Pay'}</th>
-                          <th className="px-4 py-3 text-center font-semibold text-gray-600">{isRtl ? 'الحالة' : 'Status'}</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-600">{isRtl ? 'إجراءات' : 'Actions'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {payrollRuns.map((run: any) => (
-                          <tr key={run.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{run.month}/{run.year}</td>
-                            <td className="px-4 py-3 text-right text-gray-700">{Number(run.totalGross).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right text-red-600">({Number(run.totalDeductions).toLocaleString()})</td>
-                            <td className="px-4 py-3 text-right font-bold text-emerald-700">{Number(run.totalNet).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                run.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
-                                run.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
-                                run.status === 'PROCESSING' ? 'bg-amber-100 text-amber-700' :
-                                'bg-gray-100 text-gray-600'}`}>{run.status}</span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                {run.status === 'DRAFT' && (
-                                  <button onClick={() => processPayroll.mutate(run.id)} disabled={processPayroll.isPending}
-                                    className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 disabled:opacity-50">
-                                    {isRtl ? 'معالجة' : 'Process'}
-                                  </button>
-                                )}
-                                {run.status === 'PROCESSING' && (
-                                  <button onClick={() => approvePayroll.mutate(run.id)} disabled={approvePayroll.isPending}
-                                    className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 disabled:opacity-50">
-                                    {isRtl ? 'موافقة' : 'Approve'}
-                                  </button>
-                                )}
-                                {run.status === 'APPROVED' && (
-                                  <button onClick={() => payPayroll.mutate(run.id)} disabled={payPayroll.isPending}
-                                    className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 disabled:opacity-50">
-                                    {isRtl ? 'صرف' : 'Pay'}
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-              }
+                )
+              })}
             </div>
-          </Card>
+          </div>
+        )
+
+        // Level 2: Year picker
+        if (salaryYear === null) return (
+          <div className="space-y-4 p-1">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSalaryEntity(null)} className="p-2 hover:bg-gray-100 rounded-xl"><ArrowLeft size={16} /></button>
+              <SalBreadcrumb />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {salYears.map(y => (
+                <button key={y} onClick={() => { setSalaryYear(y); setSalaryMonth(null) }}
+                  className={`px-6 py-4 rounded-2xl border text-base font-bold transition-colors ${y === salNow.getFullYear() ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-800 border-gray-200 hover:border-indigo-400'}`}>
+                  {y}{y === salNow.getFullYear() && <span className="block text-xs font-normal mt-0.5 opacity-80">★ {isRtl ? 'الحالية' : 'current'}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+
+        // Level 3: Month grid
+        if (salaryMonth === null) return (
+          <div className="space-y-4 p-1">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSalaryYear(null)} className="p-2 hover:bg-gray-100 rounded-xl"><ArrowLeft size={16} /></button>
+              <SalBreadcrumb />
+            </div>
+            {salaryLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(12)].map((_,i) => <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />)}</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {SALARY_MONTHS.map((m, i) => {
+                  const mNum = i + 1
+                  const existingBatch = salaryBatchList.find((b: any) => b.month === mNum)
+                  const isCurrent = salaryYear === salNow.getFullYear() && mNum === salNow.getMonth()+1
+                  const cfg = existingBatch ? SALARY_STATUS[existingBatch.status] : null
+                  return (
+                    <button key={mNum} onClick={() => setSalaryMonth(mNum)}
+                      className={`rounded-2xl border p-4 text-left hover:shadow-md transition-shadow ${existingBatch ? 'bg-white border-gray-200' : 'bg-white border-dashed border-gray-300'} ${isCurrent ? 'ring-2 ring-indigo-400' : ''}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-gray-800">{isRtl ? SALARY_MONTHS_AR[i] : m}</span>
+                        {isCurrent && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />}
+                      </div>
+                      {cfg ? (
+                        <>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cfg.color}`}>{isRtl ? cfg.labelAr : cfg.label}</span>
+                          <p className="text-xs text-gray-500 mt-1.5">{existingBatch.lines?.length ?? 0} {isRtl ? 'موظف' : 'employees'}</p>
+                          <p className="text-sm font-bold text-indigo-700 mt-0.5">{Number(existingBatch.totalNet).toLocaleString()} {existingBatch.school?.currency ?? 'SAR'}</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-1">{isRtl ? 'لا بيانات' : 'No data'}</p>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+
+        // Level 4: Batch detail (read-only + Finance actions)
+        const fb = salaryBatchDetail
+        const fCfg = fb ? SALARY_STATUS[fb.status] : null
+        return (
+          <div className="space-y-5 p-1">
+            {/* Header */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <button onClick={() => setSalaryMonth(null)} className="p-2 hover:bg-gray-100 rounded-xl shrink-0"><ArrowLeft size={16} /></button>
+              <div className="flex-1 min-w-0">
+                <SalBreadcrumb />
+                <h2 className="text-lg font-bold text-gray-900 mt-1">{isRtl ? 'دفعة الرواتب' : 'Salary Batch'}</h2>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                {fCfg && <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${fCfg.color}`}>{isRtl ? fCfg.labelAr : fCfg.label}</span>}
+                {fb && (
+                  <button onClick={() => printFinanceSalaryBatch(fb, salEntityName, salCurrency, salMonthName)}
+                    className="flex items-center gap-1.5 border border-gray-200 px-3 py-2 rounded-xl text-sm hover:bg-gray-50">
+                    <FileDown size={14} /> {isRtl ? 'تصدير PDF' : 'Export PDF'}
+                  </button>
+                )}
+                {fb?.status === 'SUBMITTED' && (<>
+                  <button onClick={() => financeApproveSalary.mutate({ id: fb.id })} disabled={financeApproveSalary.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-60">
+                    <CheckCircle2 size={14} /> {isRtl ? 'موافقة → مالك' : 'Approve → Owner'}
+                  </button>
+                  <button onClick={() => setSalaryRejectModal({ id: fb.id })}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100">
+                    <XCircle size={14} /> {isRtl ? 'رفض → HR' : 'Reject → HR'}
+                  </button>
+                </>)}
+                {fb?.status === 'OWNER_APPROVED' && (
+                  <button onClick={() => markSalaryPaid.mutate(fb.id)} disabled={markSalaryPaid.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+                    {isRtl ? 'تحويل الرواتب' : 'Transfer Salaries'}
+                  </button>
+                )}
+                {fb?.status === 'IN_PAYMENT' && (
+                  <button onClick={() => closeSalaryBatch.mutate(fb.id)} disabled={closeSalaryBatch.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-60">
+                    {isRtl ? 'إغلاق الشهر' : 'Close Month'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {salaryDetailLoading ? (
+              <div className="animate-pulse space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-14 bg-gray-100 rounded-xl" />)}</div>
+            ) : fb ? (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: isRtl ? 'الراتب الأساسي' : 'Base Salary', value: Number(fb.totalBaseSalary), color: 'text-gray-800' },
+                    { label: isRtl ? 'المكافآت' : 'Bonuses',           value: Number(fb.totalBonus),      color: 'text-emerald-600' },
+                    { label: isRtl ? 'الخصومات' : 'Deductions',        value: Number(fb.totalDeductions), color: 'text-red-500' },
+                    { label: isRtl ? 'صافي الرواتب' : 'Net Payroll',   value: Number(fb.totalNet),        color: 'text-indigo-700' },
+                  ].map(c => (
+                    <div key={c.label} className="bg-white rounded-2xl border border-gray-100 p-4">
+                      <p className="text-xs text-gray-500 font-medium">{c.label}</p>
+                      <p className={`text-lg font-bold mt-1 ${c.color}`}>{c.value.toLocaleString()} <span className="text-xs font-normal text-gray-400">{salCurrency}</span></p>
+                    </div>
+                  ))}
+                </div>
+                {/* Read-only table */}
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-50 bg-gray-50/60">
+                        {[isRtl?'الموظف':'Employee', isRtl?'الأساسي':'Base', isRtl?'المكافأة':'Bonus', isRtl?'الخصومات':'Deductions', isRtl?'الصافي':'Net Pay'].map(h =>
+                          <th key={h} className="text-left text-xs font-semibold text-gray-500 px-4 py-3">{h}</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {(fb.lines ?? []).map((line: any) => {
+                        const name = [line.staff?.user?.profile?.firstName, line.staff?.user?.profile?.lastName].filter(Boolean).join(' ') || line.staff?.user?.email
+                        return (
+                          <tr key={line.id} className="hover:bg-gray-50/50">
+                            <td className="px-4 py-3"><p className="font-medium text-gray-800">{name}</p><p className="text-xs text-gray-400">{line.staff?.user?.email}</p></td>
+                            <td className="px-4 py-3 text-gray-700">{Number(line.baseSalary).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-emerald-600">+{Number(line.bonus).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-red-500">-{Number(line.deductions).toLocaleString()}</td>
+                            <td className="px-4 py-3 font-bold text-indigo-700">{Number(line.netPay).toLocaleString()} {salCurrency}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    {(fb.lines ?? []).length > 0 && (
+                      <tfoot>
+                        <tr className="border-t border-gray-100 bg-indigo-50/50">
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-700">{isRtl ? `الإجمالي (${fb.lines.length} موظف)` : `Total (${fb.lines.length} employees)`}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-gray-800">{Number(fb.totalBaseSalary).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-emerald-600">+{Number(fb.totalBonus).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-red-500">-{Number(fb.totalDeductions).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-indigo-700">{Number(fb.totalNet).toLocaleString()} {salCurrency}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="text-center py-10 text-gray-400 text-sm">{isRtl ? 'لا توجد دفعة رواتب لهذا الشهر' : 'No salary batch for this month'}</p>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Finance Reject Salary Modal */}
+      {salaryRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h2 className="font-bold text-red-700">{isRtl ? 'رفض دفعة الرواتب' : 'Reject Salary Batch'}</h2>
+            <p className="text-sm text-gray-500">{isRtl ? 'سيُعاد إرسال الدفعة إلى مدير HR مع سبب الرفض' : 'Batch will be sent back to HR Manager with this rejection reason'}</p>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">{isRtl ? 'سبب الرفض *' : 'Rejection Reason *'}</label>
+              <textarea value={salaryRejectReason} onChange={e => setSalaryRejectReason(e.target.value)} rows={3}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-300" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => financeRejectSalary.mutate({ id: salaryRejectModal.id, reason: salaryRejectReason })}
+                disabled={!salaryRejectReason.trim() || financeRejectSalary.isPending}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60">
+                {financeRejectSalary.isPending ? '...' : (isRtl ? 'رفض' : 'Reject')}
+              </button>
+              <button onClick={() => { setSalaryRejectModal(null); setSalaryRejectReason('') }}
+                className="px-4 border border-gray-200 rounded-xl text-sm">{isRtl ? 'إلغاء' : 'Cancel'}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Staff Loans Tab ───────────────────────────────────────────────────── */}

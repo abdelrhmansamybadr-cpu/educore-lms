@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useLocale } from 'next-intl'
 import { useAuthStore } from '@/stores/authStore'
-import { api } from '@/lib/api'
+import { api, getApiError } from '@/lib/api'
 import { Card, CardHeader, CardBody, Avatar } from '@/components/ui'
 import { Save, Camera, User, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -40,8 +40,8 @@ export default function ProfilePage() {
       const res = await api.patch('/users/me', profileForm)
       if (res.data?.data) setUser(res.data.data)
       toast.success(isRtl ? 'تم حفظ الملف الشخصي' : 'Profile saved')
-    } catch {
-      toast.error(isRtl ? 'حدث خطأ' : 'Failed to save')
+    } catch (err: any) {
+      toast.error(getApiError(err, isRtl ? 'حدث خطأ' : 'Failed to save'))
     } finally {
       setSavingProfile(false)
     }

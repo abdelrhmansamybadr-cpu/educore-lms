@@ -78,4 +78,15 @@ export class LibraryController {
   getMyLoans(@CurrentUser('id') userId: string) {
     return this.library.getStudentLoans(userId)
   }
+
+  @Post('loans/:id/charge-fine')
+  @Roles(Role.SCHOOL_ADMIN, Role.SUPER_ADMIN, Role.LIBRARIAN, Role.FINANCE_OFFICER, 'CFO' as any, 'FINANCE_MANAGER' as any, 'SCHOOL_ACCOUNTANT' as any)
+  @ApiOperation({ summary: 'Charge library fine to student account (creates invoice item)' })
+  chargeFine(
+    @SchoolId() schoolId: string,
+    @Param('id') loanId: string,
+    @Body() body: { fineAmount: number },
+  ) {
+    return this.library.chargeFineToAccount(loanId, body.fineAmount, schoolId)
+  }
 }

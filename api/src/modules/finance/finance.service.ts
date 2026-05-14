@@ -867,6 +867,20 @@ export class FinanceService {
     })
   }
 
+  async deletePayrollRun(id: string) {
+    const run = await this.db.payrollRun.findUnique({ where: { id } })
+    if (!run) throw new NotFoundException('Payroll run not found')
+    if (run.status !== 'DRAFT') throw new BadRequestException('Only DRAFT payroll runs can be deleted')
+    return this.db.payrollRun.delete({ where: { id } })
+  }
+
+  async rejectPayrollRun(id: string) {
+    const run = await this.db.payrollRun.findUnique({ where: { id } })
+    if (!run) throw new NotFoundException('Payroll run not found')
+    if (run.status !== 'APPROVED') throw new BadRequestException('Only APPROVED payroll runs can be rejected')
+    return this.db.payrollRun.update({ where: { id }, data: { status: 'REJECTED' as any } })
+  }
+
   async payPayrollRun(id: string) {
     const run = await this.db.payrollRun.findUnique({ where: { id } })
     if (!run) throw new NotFoundException('Payroll run not found')

@@ -39,6 +39,12 @@ export class SchoolsController {
     return this.schools.findAll(query)
   }
 
+  @Get('my-list')
+  @ApiOperation({ summary: 'Get all schools this user has access to (org owners get all schools in their org)' })
+  getMySchools(@CurrentUser() user: any) {
+    return this.schools.getMySchools(user.id, user.schoolId ?? null, user.orgId ?? null)
+  }
+
   @Get(':id')
   @Roles(Role.SUPER_ADMIN, Role.DEVELOPER, Role.SCHOOL_ADMIN, Role.VICE_PRINCIPAL)
   @ApiOperation({ summary: 'Get school by ID' })
