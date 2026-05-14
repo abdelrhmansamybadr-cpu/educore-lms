@@ -439,8 +439,7 @@ export class FinanceService {
         include: {
           invoice: {
             select: {
-              invoiceNumber: true, description: true, total: true,
-              student: { select: { profile: { select: { firstName: true, lastName: true, studentId: true } } } },
+              invoiceNumber: true, total: true, studentId: true,
             },
           },
         },
@@ -697,10 +696,12 @@ export class FinanceService {
   }
 
   async createBudget(dto: any) {
-    const { items, ...rest } = dto
+    const { items, startDate, endDate, ...rest } = dto
     return this.db.budget.create({
       data: {
         ...rest,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
         items: items?.length ? { create: items } : undefined,
       },
       include: { items: true },

@@ -374,7 +374,7 @@ function AdminFinancePageInner() {
   const { data: procurementReqs = [], isLoading: procLoading } = useQuery<any[]>({
     queryKey: ['finance-requisitions'],
     queryFn: async () => {
-      const res = await apiClient.get('/requisitions?limit=200')
+      const res = await apiClient.get('/owner/requisitions?limit=200')
       const p = res.data
       return Array.isArray(p) ? p : p?.data ?? []
     },
@@ -819,7 +819,7 @@ function AdminFinancePageInner() {
 
   // ── Modal state — Budget ──────────────────────────────────────────────────────
   const [showBudgetModal, setShowBudgetModal] = useState(false)
-  const [budgetForm, setBudgetForm] = useState({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '' })
+  const [budgetForm, setBudgetForm] = useState({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '' })
 
   const createBudgetMutation = useMutation({
     mutationFn: (dto: any) => api.post('/finance/budgets', dto),
@@ -827,7 +827,7 @@ function AdminFinancePageInner() {
       toast.success(isRtl ? 'تم إنشاء الميزانية' : 'Budget created')
       qc.invalidateQueries({ queryKey: ['budgets'] })
       setShowBudgetModal(false)
-      setBudgetForm({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '' })
+      setBudgetForm({ name: '', fiscalYear: String(new Date().getFullYear()), totalAmount: '', startDate: '', endDate: '' })
     },
     onError: (e) => toast.error(getApiError(e)),
   })
@@ -835,6 +835,14 @@ function AdminFinancePageInner() {
   // ── Modal state — Loan ────────────────────────────────────────────────────────
   const [showLoanModal, setShowLoanModal] = useState(false)
   const [loanForm, setLoanForm] = useState({ staffId: '', amount: '', reason: '', totalInstallments: '1' })
+  const [staffSearch, setStaffSearch] = useState('')
+  const [staffSearchOpen, setStaffSearchOpen] = useState(false)
+
+  const { data: staffList = [] } = useQuery({
+    queryKey: ['finance-staff-list', staffSearch],
+    queryFn: () => api.get(`/finance/staff-list?q=${encodeURIComponent(staffSearch)}`).then((r: any) => r.data?.data ?? r.data ?? []),
+    enabled: showLoanModal,
+  })
 
   const createLoanMutation = useMutation({
     mutationFn: (dto: any) => api.post('/finance/loans', dto),
@@ -843,6 +851,7 @@ function AdminFinancePageInner() {
       qc.invalidateQueries({ queryKey: ['staff-loans'] })
       setShowLoanModal(false)
       setLoanForm({ staffId: '', amount: '', reason: '', totalInstallments: '1' })
+      setStaffSearch(''); setStaffSearchOpen(false)
     },
     onError: (e) => toast.error(getApiError(e)),
   })
@@ -1125,26 +1134,58 @@ function AdminFinancePageInner() {
       <Modal title={isRtl ? 'ميزانية جديدة' : 'New Budget'} onClose={() => setShowBudgetModal(false)}
         loading={createBudgetMutation.isPending}
         onSubmit={() => {
-          if (!budgetForm.name || !budgetForm.fiscalYear || !budgetForm.totalAmount) { toast.error(isRtl ? 'يرجى ملء جميع الحقول' : 'Fill all fields'); return }
-          createBudgetMutation.mutate({ name: budgetForm.name, fiscalYear: +budgetForm.fiscalYear, totalAmount: +budgetForm.totalAmount })
+          if (!budgetForm.name || !budgetForm.fiscalYear || !budgetForm.totalAmount || !budgetForm.startDate || !budgetForm.endDate) { toast.error(isRtl ? 'يرجى ملء جميع الحقول' : 'Fill all fields'); return }
+          createBudgetMutation.mutate({ name: budgetForm.name, fiscalYear: +budgetForm.fiscalYear, totalAmount: +budgetForm.totalAmount, startDate: budgetForm.startDate, endDate: budgetForm.endDate })
         }}>
         <InputField label={isRtl ? 'اسم الميزانية' : 'Budget Name'} value={budgetForm.name} onChange={(v) => setBudgetForm(f => ({ ...f, name: v }))} />
         <InputField label={isRtl ? 'السنة المالية' : 'Fiscal Year'} value={budgetForm.fiscalYear} onChange={(v) => setBudgetForm(f => ({ ...f, fiscalYear: v }))} type="number" />
         <InputField label={isRtl ? 'إجمالي الميزانية' : 'Total Amount'} value={budgetForm.totalAmount} onChange={(v) => setBudgetForm(f => ({ ...f, totalAmount: v }))} type="number" placeholder="0.00" />
+        <InputField label={isRtl ? 'تاريخ البداية' : 'Start Date'} value={budgetForm.startDate} onChange={(v) => setBudgetForm(f => ({ ...f, startDate: v }))} type="date" />
+        <InputField label={isRtl ? 'تاريخ النهاية' : 'End Date'} value={budgetForm.endDate} onChange={(v) => setBudgetForm(f => ({ ...f, endDate: v }))} type="date" />
       </Modal>
     )}
 
     {/* ── Modal: Request Loan ────────────────────────────────────────────────── */}
     {showLoanModal && (
-      <Modal title={isRtl ? 'طلب سلفة موظف' : 'Request Staff Loan'} onClose={() => setShowLoanModal(false)}
+      <Modal title={isRtl ? 'طلب سلفة موظف' : 'Request Staff Loan'} onClose={() => { setShowLoanModal(false); setStaffSearch(''); setStaffSearchOpen(false) }}
         loading={createLoanMutation.isPending}
         onSubmit={() => {
           if (!loanForm.staffId || !loanForm.amount) { toast.error(isRtl ? 'يرجى ملء الحقول المطلوبة' : 'Fill required fields'); return }
-          createLoanMutation.mutate({ staffId: loanForm.staffId, amount: +loanForm.amount, reason: loanForm.reason, totalInstallments: +loanForm.totalInstallments })
+          const inst = +loanForm.totalInstallments || 1
+          const monthlyDeduction = Math.ceil((+loanForm.amount / inst) * 100) / 100
+          createLoanMutation.mutate({ staffId: loanForm.staffId, amount: +loanForm.amount, reason: loanForm.reason, totalInstallments: inst, monthlyDeduction })
         }}>
-        <InputField label={isRtl ? 'معرّف الموظف (Staff ID)' : 'Staff ID (HR record ID)'} value={loanForm.staffId} onChange={(v) => setLoanForm(f => ({ ...f, staffId: v }))} placeholder="UUID..." />
+        {/* Staff searchable picker */}
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{isRtl ? 'الموظف' : 'Employee'}</label>
+          <input
+            type="text"
+            value={staffSearch}
+            onChange={e => { setStaffSearch(e.target.value); setStaffSearchOpen(true) }}
+            onFocus={() => setStaffSearchOpen(true)}
+            placeholder={loanForm.staffId ? (staffList as any[]).find((s: any) => s.id === loanForm.staffId) ? `${(staffList as any[]).find((s: any) => s.id === loanForm.staffId)?.user?.profile?.firstName ?? ''} ${(staffList as any[]).find((s: any) => s.id === loanForm.staffId)?.user?.profile?.lastName ?? ''}`.trim() || (staffList as any[]).find((s: any) => s.id === loanForm.staffId)?.user?.email : loanForm.staffId : (isRtl ? 'ابحث عن موظف...' : 'Search employee...')}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          />
+          {staffSearchOpen && (staffList as any[]).length > 0 && (
+            <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+              {(staffList as any[]).map((s: any) => {
+                const name = [s.user?.profile?.firstName, s.user?.profile?.lastName].filter(Boolean).join(' ') || s.user?.email
+                return (
+                  <button key={s.id} type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center justify-between"
+                    onClick={() => { setLoanForm(f => ({ ...f, staffId: s.id })); setStaffSearch(name); setStaffSearchOpen(false) }}>
+                    <span className="font-medium">{name}</span>
+                    <span className="text-xs text-gray-400">{s.school?.name ?? s.jobTitle ?? ''}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {loanForm.staffId && <p className="text-xs text-green-600 mt-0.5">{isRtl ? 'تم الاختيار' : 'Selected'}: {loanForm.staffId.slice(0, 8)}…</p>}
+        </div>
         <InputField label={isRtl ? 'المبلغ' : 'Amount'} value={loanForm.amount} onChange={(v) => setLoanForm(f => ({ ...f, amount: v }))} type="number" placeholder="0.00" />
         <InputField label={isRtl ? 'عدد الأقساط' : 'Installments'} value={loanForm.totalInstallments} onChange={(v) => setLoanForm(f => ({ ...f, totalInstallments: v }))} type="number" />
+        <div className="text-xs text-gray-500 -mt-1">{isRtl ? 'القسط الشهري: ' : 'Monthly deduction: '}<span className="font-semibold text-gray-700">{loanForm.amount && loanForm.totalInstallments ? (Math.ceil((+loanForm.amount / (+loanForm.totalInstallments || 1)) * 100) / 100).toFixed(2) : '—'}</span></div>
         <InputField label={isRtl ? 'السبب' : 'Reason'} value={loanForm.reason} onChange={(v) => setLoanForm(f => ({ ...f, reason: v }))} placeholder={isRtl ? 'سبب السلفة...' : 'Reason for loan...'} />
       </Modal>
     )}

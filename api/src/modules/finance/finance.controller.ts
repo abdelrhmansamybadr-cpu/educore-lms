@@ -381,8 +381,9 @@ export class FinanceController {
   @Post('budgets')
   @Roles(...FINANCE_ADMIN)
   @ApiOperation({ summary: 'Create budget' })
-  createBudget(@CurrentUser('orgId') orgId: string, @SchoolId() schoolId: string, @Body() dto: any) {
-    return this.finance.createBudget({ ...dto, orgId, schoolId })
+  async createBudget(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
+    const sid = await this.resolveSchoolId(user, schoolId)
+    return this.finance.createBudget({ ...dto, orgId: user.orgId, schoolId: sid! })
   }
 
   @Patch('budgets/:id')
@@ -417,8 +418,9 @@ export class FinanceController {
   @Post('payroll-runs')
   @Roles(...PAYROLL_ROLES)
   @ApiOperation({ summary: 'Create new payroll run' })
-  createPayrollRun(@CurrentUser('orgId') orgId: string, @SchoolId() schoolId: string, @Body() dto: any) {
-    return this.finance.createPayrollRun({ orgId, schoolId, month: dto.month, year: dto.year })
+  async createPayrollRun(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
+    const sid = await this.resolveSchoolId(user, schoolId)
+    return this.finance.createPayrollRun({ orgId: user.orgId, schoolId: sid!, month: dto.month, year: dto.year })
   }
 
   @Get('payroll-runs/:id')
@@ -455,6 +457,35 @@ export class FinanceController {
     return this.finance.getPayslip(runId, staffId)
   }
 
+  // ── Staff list helper (for loan/payroll modals) ───────────────────────────────
+
+  @Get('staff-list')
+  @Roles(...PAYROLL_ROLES)
+  @ApiOperation({ summary: 'Get all staff profiles across the org for finance use' })
+  async getStaffList(@CurrentUser('orgId') orgId: string, @Query('q') q?: string) {
+    const staff = await (this.prisma as any).staffProfile.findMany({
+      where: {
+        school: { organizationId: orgId },
+        ...(q ? {
+          OR: [
+            { user: { profile: { firstName: { contains: q, mode: 'insensitive' } } } },
+            { user: { profile: { lastName: { contains: q, mode: 'insensitive' } } } },
+            { user: { email: { contains: q, mode: 'insensitive' } } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        user: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } },
+        school: { select: { name: true } },
+      },
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+    })
+    return staff
+  }
+
   // ── Staff Loans ───────────────────────────────────────────────────────────────
 
   @Get('loans')
@@ -467,8 +498,9 @@ export class FinanceController {
   @Post('loans')
   @Roles(...PAYROLL_ROLES)
   @ApiOperation({ summary: 'Create staff loan' })
-  createLoan(@SchoolId() schoolId: string, @Body() dto: any) {
-    return this.finance.createLoan({ ...dto, schoolId })
+  async createLoan(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
+    const sid = await this.resolveSchoolId(user, schoolId)
+    return this.finance.createLoan({ ...dto, schoolId: sid! })
   }
 
   @Post('loans/:id/approve')
@@ -494,8 +526,9 @@ export class FinanceController {
 
   @Post('expenses')
   @ApiOperation({ summary: 'Submit expense claim (any authenticated user)' })
-  createExpense(@CurrentUser('orgId') orgId: string, @SchoolId() schoolId: string, @CurrentUser('id') userId: string, @Body() dto: any) {
-    return this.finance.createExpense({ ...dto, orgId, schoolId, submittedById: userId })
+  async createExpense(@CurrentUser() user: any, @SchoolId() schoolId: string, @Body() dto: any) {
+    const sid = await this.resolveSchoolId(user, schoolId)
+    return this.finance.createExpense({ ...dto, orgId: user.orgId, schoolId: sid, submittedById: user.id })
   }
 
   @Post('expenses/:id/approve')
