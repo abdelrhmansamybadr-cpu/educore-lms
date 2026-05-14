@@ -331,7 +331,10 @@ const getNavSections = (_locale: string, basePath: string, userRole?: string): N
         ] },
       { key: 'finance-personal', labelAr: 'الشخصية', labelEn: 'Personal',
         items: [
-          { key: 'messaging',     label: 'Messages',            labelAr: 'الرسائل',             icon: <MessageSquare size={18} />,   href: msgPath },
+          { key: 'my-profile',    label: 'My Profile',          labelAr: 'ملفي الشخصي',          icon: <Users size={18} />,           href: `${basePath}/hr?tab=profile` },
+          { key: 'my-leaves',     label: 'My Leaves',           labelAr: 'إجازاتي',              icon: <Calendar size={18} />,        href: `${basePath}/hr?tab=leaves` },
+          { key: 'announcements', label: 'Announcements',       labelAr: 'الإعلانات',            icon: <Megaphone size={18} />,       href: `${basePath}/hr?tab=announcements` },
+          { key: 'messaging',     label: 'Messages',            labelAr: 'الرسائل',              icon: <MessageSquare size={18} />,   href: msgPath },
           { key: 'it-support',    label: 'IT Support',          labelAr: 'الدعم التقني',         icon: <HelpCircle size={18} />,      href: `${localePrefix}/admin/it-support` },
         ] },
     ]
